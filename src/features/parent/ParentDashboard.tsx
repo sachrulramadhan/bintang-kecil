@@ -19,6 +19,7 @@ import {
   HelpCircle,
   FileText,
   Printer,
+  LogOut,
 } from "lucide-react";
 import { ChildProfile, ParentAccount, CategoryId, AgeRange } from "../../types";
 import { storage } from "../../core/storage";
@@ -33,6 +34,7 @@ interface ParentDashboardProps {
   childrenList: ChildProfile[];
   onSelectChild: (childId: string) => void;
   onReturnToChildMode: () => void;
+  onLogout: () => void;
   onRefreshData: () => void;
 }
 
@@ -54,6 +56,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   childrenList,
   onSelectChild,
   onReturnToChildMode,
+  onLogout,
   onRefreshData,
 }) => {
   const [activeTab, setActiveTab] = useState<ParentTab>("dashboard");
@@ -188,13 +191,22 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={onReturnToChildMode}
-          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-500 hover:to-yellow-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm shadow-md transition-all active:scale-95 border border-amber-500"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Kembali ke Mode Anak 🐰</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={onReturnToChildMode}
+            className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-500 hover:to-yellow-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-sm shadow-md transition-all active:scale-95 border border-amber-500"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Kembali ke Mode Anak 🐰</span>
+          </button>
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-all active:scale-95 border border-rose-200"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
+        </div>
       </header>
 
       {/* Main Layout: Sidebar Navigation + Content Area */}

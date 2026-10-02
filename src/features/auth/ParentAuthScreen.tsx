@@ -6,10 +6,14 @@ import { ParentAccount, ChildProfile, CategoryId } from "../../types";
 
 interface ParentAuthScreenProps {
   onAuthSuccess: () => void;
+  existingParent: ParentAccount | null;
+  onResumeSavedData: () => void;
 }
 
 export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
   onAuthSuccess,
+  existingParent,
+  onResumeSavedData,
 }) => {
   const [parentName, setParentName] = useState("");
   const [parentEmail, setParentEmail] = useState("");
@@ -27,22 +31,46 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
       return;
     }
 
-    const passHash = await hashString(parentPassword || "default_pass");
     if (!/^\d{4,6}$/.test(parentPin)) {
       setErrorMsg("PIN orang tua harus 4 sampai 6 angka.");
       return;
     }
     const pinHash = await hashString(parentPin);
 
-    const parent: ParentAccount = {
-      id: `parent_${Date.now()}`,
-      name: parentName.trim(),
-      email: parentEmail.trim(),
-      passwordHash: passHash,
-      pinHash: pinHash,
-      createdAt: new Date().toISOString(),
-    };
-    storage.setParentAccount(parent);
+    let parent = existingParent;
+    if (parent) {
+      if (
+        parent.email.toLowerCase() !== parentEmail.trim().toLowerCase() ||
+        parent.pinHash !== pinHash
+      ) {
+        setErrorMsg("Email atau PIN tidak cocok dengan akun tersimpan.");
+        return;
+      }
+
+      const savedChild = storage
+        .getChildren()
+        .find(
+          (child) =>
+            child.parentId === parent.id &&
+            child.nickname.toLowerCase() === childNickname.trim().toLowerCase()
+        );
+      if (savedChild) {
+        storage.setActiveChildId(savedChild.id);
+        onAuthSuccess();
+        return;
+      }
+    } else {
+      const passHash = await hashString(parentPassword || "default_pass");
+      parent = {
+        id: `parent_${Date.now()}`,
+        name: parentName.trim(),
+        email: parentEmail.trim(),
+        passwordHash: passHash,
+        pinHash,
+        createdAt: new Date().toISOString(),
+      };
+      storage.setParentAccount(parent);
+    }
 
     const allCategories: CategoryId[] = [
       "stories",
@@ -89,7 +117,36 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
     onAuthSuccess();
   };
 
+  const handleResumeSavedData = async () => {
+    if (!existingParent) return;
+    if (!/^\d{4,6}$/.test(parentPin)) {
+      setErrorMsg("Masukkan PIN orang tua 4 sampai 6 angka untuk melanjutkan.");
+      return;
+    }
+    if ((await hashString(parentPin)) !== existingParent.pinHash) {
+      setErrorMsg("PIN orang tua tidak cocok.");
+      return;
+    }
+
+    const children = storage
+      .getChildren()
+      .filter((child) => child.parentId === existingParent.id);
+    if (children.length === 0) {
+      setErrorMsg("Tidak ditemukan profil anak pada akun tersimpan.");
+      return;
+    }
+
+    const activeChildId = storage.getActiveChildId();
+    const activeChild = children.find((child) => child.id === activeChildId);
+    storage.setActiveChildId((activeChild || children[0]).id);
+    onResumeSavedData();
+  };
+
   const handleQuickDemo = () => {
+    if (existingParent) {
+      setErrorMsg("Gunakan PIN untuk melanjutkan ke profil yang tersimpan.");
+      return;
+    }
     storage.seedDemoData();
     onAuthSuccess();
   };
@@ -295,14 +352,25 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
                   >
                     Mulai Petualangan Belajar 🚀
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleQuickDemo}
-                    className="rounded-2xl border border-sky-200 bg-sky-100 px-5 py-3 text-sm font-extrabold text-sky-700 transition hover:bg-sky-200"
-                    title="Langsung coba dengan data demo terisi"
-                  >
-                    Coba Demo Langsung
-                  </button>
+                  {!existingParent && (
+                    <button
+                      type="button"
+                      onClick={handleQuickDemo}
+                      className="rounded-2xl border border-sky-200 bg-sky-100 px-5 py-3 text-sm font-extrabold text-sky-700 transition hover:bg-sky-200"
+                      title="Langsung coba dengan data demo terisi"
+                    >
+                      Coba Demo Langsung
+                    </button>
+                  )}
+                  {existingParent && (
+                    <button
+                      type="button"
+                      onClick={handleResumeSavedData}
+                      className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-extrabold text-emerald-700 transition hover:bg-emerald-100"
+                    >
+                      Lanjutkan Profil Tersimpan
+                    </button>
+                  )}
                 </div>
               </form>
             </div>

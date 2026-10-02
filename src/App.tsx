@@ -22,6 +22,9 @@ export default function App() {
   const [childrenList, setChildrenList] = useState<ChildProfile[]>([]);
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const [currentMode, setCurrentMode] = useState<"child" | "parent" | "select-child">("child");
+  const [isLoggedOut, setIsLoggedOut] = useState(
+    () => sessionStorage.getItem("bk:signed-out") === "true"
+  );
   const [activeChildTab, setActiveChildTab] = useState<NavTab>("home");
   const [selectedCategoryFromHome, setSelectedCategoryFromHome] = useState<CategoryId | undefined>(undefined);
 
@@ -83,14 +86,26 @@ export default function App() {
     setCurrentMode("parent");
   };
 
+  const handleLogout = () => {
+    sessionStorage.setItem("bk:signed-out", "true");
+    setIsLoggedOut(true);
+    setCurrentMode("child");
+  };
+
+  const handleAuthSuccess = () => {
+    sessionStorage.removeItem("bk:signed-out");
+    setIsLoggedOut(false);
+    refreshAllData();
+    setCurrentMode("child");
+  };
+
   // If no parent account created yet
-  if (!parentAccount) {
+  if (!parentAccount || isLoggedOut) {
     return (
       <ParentAuthScreen
-        onAuthSuccess={() => {
-          refreshAllData();
-          setCurrentMode("child");
-        }}
+        existingParent={parentAccount}
+        onAuthSuccess={handleAuthSuccess}
+        onResumeSavedData={handleAuthSuccess}
       />
     );
   }
@@ -134,6 +149,7 @@ export default function App() {
           refreshAllData();
         }}
         onReturnToChildMode={() => setCurrentMode("child")}
+        onLogout={handleLogout}
         onRefreshData={refreshAllData}
       />
     );
@@ -168,6 +184,7 @@ export default function App() {
           child={activeChild}
           onOpenParentGate={() => setIsParentGateOpen(true)}
           onOpenStreakModal={() => setIsStreakModalOpen(true)}
+          onLogout={handleLogout}
           pageHelpText={`Halo ${activeChild.nickname}! Sentuh kartu yang kamu sukai untuk mulai belajar dan bermain bersama Bimo!`}
         />
       </div>
