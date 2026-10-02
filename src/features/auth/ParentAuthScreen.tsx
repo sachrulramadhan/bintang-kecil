@@ -23,6 +23,7 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
   const [childAge, setChildAge] = useState(2);
   const [childAvatar, setChildAvatar] = useState("🐰");
   const [errorMsg, setErrorMsg] = useState("");
+  const [isRegisteringNewParent, setIsRegisteringNewParent] = useState(!existingParent);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,15 +38,20 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
     }
     const pinHash = await hashString(parentPin);
 
-    let parent = existingParent;
-    if (parent) {
-      if (
-        parent.email.toLowerCase() !== parentEmail.trim().toLowerCase() ||
-        parent.pinHash !== pinHash
-      ) {
+    let parent: ParentAccount;
+    if (existingParent && !isRegisteringNewParent) {
+      const savedParent = storage
+        .getParentAccounts()
+        .find(
+          (account) =>
+            account.email.toLowerCase() === parentEmail.trim().toLowerCase()
+        );
+      if (!savedParent || savedParent.pinHash !== pinHash) {
         setErrorMsg("Email atau PIN tidak cocok dengan akun tersimpan.");
         return;
       }
+      parent = savedParent;
+      storage.setParentAccount(parent);
 
       const savedChild = storage
         .getChildren()
@@ -60,6 +66,17 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
         return;
       }
     } else {
+      const emailAlreadyRegistered = storage
+        .getParentAccounts()
+        .some(
+          (account) =>
+            account.email.toLowerCase() === parentEmail.trim().toLowerCase()
+        );
+      if (emailAlreadyRegistered) {
+        setErrorMsg("Email ini sudah terdaftar. Gunakan email lain atau lanjutkan profil tersimpan.");
+        return;
+      }
+
       const passHash = await hashString(parentPassword || "default_pass");
       parent = {
         id: `parent_${Date.now()}`,
@@ -119,23 +136,34 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
 
   const handleResumeSavedData = async () => {
     if (!existingParent) return;
+    if (!parentEmail.trim()) {
+      setErrorMsg("Masukkan email akun orang tua yang ingin dilanjutkan.");
+      return;
+    }
     if (!/^\d{4,6}$/.test(parentPin)) {
       setErrorMsg("Masukkan PIN orang tua 4 sampai 6 angka untuk melanjutkan.");
       return;
     }
-    if ((await hashString(parentPin)) !== existingParent.pinHash) {
+    const savedParent = storage
+      .getParentAccounts()
+      .find(
+        (account) =>
+          account.email.toLowerCase() === parentEmail.trim().toLowerCase()
+      );
+    if (!savedParent || (await hashString(parentPin)) !== savedParent.pinHash) {
       setErrorMsg("PIN orang tua tidak cocok.");
       return;
     }
 
     const children = storage
       .getChildren()
-      .filter((child) => child.parentId === existingParent.id);
+      .filter((child) => child.parentId === savedParent.id);
     if (children.length === 0) {
       setErrorMsg("Tidak ditemukan profil anak pada akun tersimpan.");
       return;
     }
 
+    storage.setParentAccount(savedParent);
     const activeChildId = storage.getActiveChildId();
     const activeChild = children.find((child) => child.id === activeChildId);
     storage.setActiveChildId((activeChild || children[0]).id);
@@ -209,14 +237,34 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
             <div className="relative z-10">
               <div className="mb-6">
                 <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-sky-700">
-                  Daftar akun
+                  {existingParent && !isRegisteringNewParent
+                    ? "Akun tersimpan"
+                    : "Daftar akun"}
                 </span>
                 <h2 className="mt-3 font-display text-3xl font-bold text-[#21466D] sm:text-4xl">
-                  Selamat Datang Ayah & Bunda! 👋
+                  {existingParent && !isRegisteringNewParent
+                    ? "Selamat datang kembali! 👋"
+                    : "Selamat Datang Ayah & Bunda! 👋"}
                 </h2>
                 <p className="mt-2 text-sm font-semibold text-slate-500">
-                  Daftarkan akun orang tua dan buat profil buah hati Anda untuk memulai.
+                  {existingParent && !isRegisteringNewParent
+                    ? "Masukkan email dan PIN akun tersimpan, atau daftar sebagai pengguna baru."
+                    : "Daftarkan akun orang tua dan buat profil buah hati Anda untuk memulai."}
                 </p>
+                {existingParent && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsRegisteringNewParent((registering) => !registering);
+                      setErrorMsg("");
+                    }}
+                    className="mt-3 rounded-xl border border-sky-200 bg-white px-4 py-2 text-sm font-extrabold text-sky-700 transition hover:bg-sky-50"
+                  >
+                    {isRegisteringNewParent
+                      ? "Kembali ke akun tersimpan"
+                      : "Daftar akun orang tua baru"}
+                  </button>
+                )}
               </div>
 
               {errorMsg && (
@@ -346,12 +394,16 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-                  <button
-                    type="submit"
-                    className="flex-1 rounded-2xl border border-amber-500 bg-gradient-to-r from-[#FFD75A] via-[#FFC933] to-[#FFB347] px-5 py-3 text-base font-black text-amber-950 shadow-[0_6px_0_#E39A00,0_18px_24px_-8px_rgba(255,179,71,0.65)] transition-transform active:scale-[0.98]"
-                  >
-                    Mulai Petualangan Belajar 🚀
-                  </button>
+                  {(!existingParent || isRegisteringNewParent) && (
+                    <button
+                      type="submit"
+                      className="flex-1 rounded-2xl border border-amber-500 bg-gradient-to-r from-[#FFD75A] via-[#FFC933] to-[#FFB347] px-5 py-3 text-base font-black text-amber-950 shadow-[0_6px_0_#E39A00,0_18px_24px_-8px_rgba(255,179,71,0.65)] transition-transform active:scale-[0.98]"
+                    >
+                      {existingParent
+                        ? "Daftarkan Pengguna Baru 🚀"
+                        : "Mulai Petualangan Belajar 🚀"}
+                    </button>
+                  )}
                   {!existingParent && (
                     <button
                       type="button"
@@ -362,7 +414,7 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
                       Coba Demo Langsung
                     </button>
                   )}
-                  {existingParent && (
+                  {existingParent && !isRegisteringNewParent && (
                     <button
                       type="button"
                       onClick={handleResumeSavedData}

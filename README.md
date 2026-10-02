@@ -36,5 +36,6 @@ Ilustrasi ada di `public/bimo/` (WebP transparan): `face-*.webp` (10 ekspresi) d
 ## Penting sebelum rilis publik
 - Akun dan PIN orang tua saat ini disimpan di peramban (hash SHA-256 + salt statis). Ini cukup untuk satu perangkat, **bukan** autentikasi sungguhan. Untuk sinkron antarperangkat, tambahkan backend (mis. Cloudflare D1/Workers) dengan autentikasi server.
 - Tombol logout kembali ke halaman pendaftaran tanpa menghapus data lokal. Gunakan PIN orang tua untuk melanjutkan kembali ke profil yang tersimpan.
+- Dari halaman logout, pilih "Daftar akun orang tua baru" untuk membuat akun lain di perangkat yang sama. Akun lama dan progresnya tetap tersimpan; gunakan email dan PIN akun tersebut untuk membukanya kembali.
 - Suara memakai Web Speech API bawaan peramban; kualitas berbeda tiap perangkat. Untuk suara natural, ganti dengan file MP3 (lihat `src/core/audio.ts`).
 - Data Misi Harian di beranda masih contoh statis.

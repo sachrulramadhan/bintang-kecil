@@ -53,8 +53,26 @@ class StorageRepository {
     return this.getItem<ParentAccount | null>("parent_account", null);
   }
 
+  getParentAccounts(): ParentAccount[] {
+    const accounts = this.getItem<ParentAccount[]>("parent_accounts", []);
+    const currentAccount = this.getParentAccount();
+    if (currentAccount && !accounts.some((account) => account.id === currentAccount.id)) {
+      accounts.push(currentAccount);
+      this.setItem("parent_accounts", accounts);
+    }
+    return accounts;
+  }
+
   setParentAccount(account: ParentAccount): void {
     this.setItem("parent_account", account);
+    const accounts = this.getParentAccounts();
+    const existingIndex = accounts.findIndex((saved) => saved.id === account.id);
+    if (existingIndex >= 0) {
+      accounts[existingIndex] = account;
+    } else {
+      accounts.push(account);
+    }
+    this.setItem("parent_accounts", accounts);
   }
 
   // Active Child ID
