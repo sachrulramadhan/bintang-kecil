@@ -2,7 +2,7 @@ import type { D1Database, Env, AuthenticatedUser } from "./types";
 
 const SESSION_COOKIE = "bk_cms_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
-const PBKDF2_ITERATIONS = 210_000;
+const PBKDF2_ITERATIONS = 100_000;
 
 export function jsonResponse(
   data: unknown,
@@ -180,7 +180,7 @@ export async function verifyPassword(
     algorithm !== "pbkdf2-sha256" ||
     !Number.isInteger(iterations) ||
     iterations < 100_000 ||
-    iterations > 500_000 ||
+    iterations > 100_000 ||
     !saltHex ||
     !expectedHex
   ) {
