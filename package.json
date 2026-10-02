@@ -8,7 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "cms:dev": "npx wrangler dev",
+    "cms:migrate:local": "npx wrangler d1 migrations apply bintang-kecil-cms --local",
+    "cms:migrate:remote": "npx wrangler d1 migrations apply bintang-kecil-cms --remote"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

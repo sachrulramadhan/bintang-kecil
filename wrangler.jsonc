@@ -1,9 +1,19 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "bintang-kecil",
+  "main": "./worker/index.ts",
   "compatibility_date": "2026-09-01",
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "CMS_DB",
+      "database_name": "bintang-kecil-cms",
+      "database_id": "37f1a0cd-fca0-4837-9544-7f2f0da207fe",
+      "migrations_dir": "./migrations"
+    }
+  ]
 }

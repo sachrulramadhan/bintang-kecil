@@ -10,20 +10,55 @@ npm run lint     # cek tipe TypeScript
 npm run build    # hasil di folder dist/
 ```
 
+## CMS Admin Master (Cloudflare Workers + D1)
+
+CMS admin diakses melalui `/admin`. Autentikasi staff dan konten CMS disimpan di D1, terpisah dari akun orang tua aplikasi belajar yang masih tersimpan di browser. Pustaka media saat ini menerima URL eksternal; belum ada upload file.
+
+### Setup lokal
+Pastikan Wrangler sudah terautentikasi (`npx wrangler login`), lalu jalankan:
+```bash
+npm run build
+npm run cms:migrate:local
+npm run cms:dev
+```
+Buka alamat Wrangler yang ditampilkan (biasanya `http://localhost:8787/admin`). Untuk mereset database lokal setelah pengujian, gunakan perintah Wrangler D1 lokal yang sesuai; jangan menjalankan perintah reset pada database remote.
+
+### Setup Cloudflare pertama kali
+Konfigurasi ini memakai Cloudflare Worker Static Assets, bukan Cloudflare Pages.
+1. Buat secret acak minimal 32 karakter dan simpan di password manager. Set secret tanpa menaruh nilainya di source code:
+   ```bash
+   npx wrangler secret put CMS_SETUP_TOKEN
+   ```
+2. Terapkan schema dan data awal ke D1:
+   ```bash
+   npm run cms:migrate:remote
+   ```
+3. Build dan deploy Worker:
+   ```bash
+   npm run build
+   npx wrangler deploy
+   ```
+4. Buka `/admin` pada alamat Worker, masukkan `CMS_SETUP_TOKEN`, lalu buat akun Admin Master dengan kata sandi minimal 12 karakter. Setup hanya dapat dilakukan sekali; simpan kredensial admin dengan aman.
+5. Buat akun staff dari menu **Manajemen akun**. Tautan aktivasi berlaku 48 jam dan hanya dapat dipakai sekali.
+
+Perubahan schema selanjutnya harus ditambahkan sebagai migration SQL bernomor baru di `migrations/`, lalu diterapkan menggunakan `npm run cms:migrate:remote` sebelum deploy kode yang memerlukannya.
+
 ## Deploy ke Cloudflare
 
-**Opsi A - Pages dari GitHub (paling mudah)**
+**Opsi A - Pages dari GitHub (aplikasi belajar saja)**
 1. Unggah folder ini ke repositori GitHub.
 2. Cloudflare Dashboard -> Workers & Pages -> Create -> Pages -> Connect to Git.
 3. Build command: `npm run build` - Build output directory: `dist` - Node version: 20 atau lebih baru.
 
-**Opsi B - Unggah langsung**
+Penerapan Pages tidak menyediakan Worker API/D1 CMS yang dikonfigurasi di `wrangler.jsonc`. Gunakan deploy Workers Static Assets di bawah untuk aplikasi lengkap dengan CMS.
+
+**Opsi B - Pages manual (aplikasi belajar saja)**
 ```bash
 npm run build
 npx wrangler pages deploy dist --project-name bintang-kecil
 ```
 
-**Opsi C - Workers Static Assets** (memakai `wrangler.jsonc`)
+**Opsi C - Workers Static Assets (aplikasi belajar + CMS)** (memakai `wrangler.jsonc`)
 ```bash
 npm run build && npx wrangler deploy
 ```
