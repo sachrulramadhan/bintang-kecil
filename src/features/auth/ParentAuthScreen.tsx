@@ -16,7 +16,7 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
   const [parentPassword, setParentPassword] = useState("");
   const [parentPin, setParentPin] = useState("");
   const [childNickname, setChildNickname] = useState("");
-  const [childAge, setChildAge] = useState(5);
+  const [childAge, setChildAge] = useState(2);
   const [childAvatar, setChildAvatar] = useState("🐰");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -95,163 +95,218 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-child-pattern select-none">
-      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-12 bg-white rounded-[36px] shadow-2xl border-4 border-amber-300 overflow-hidden animate-in zoom-in-95 duration-200">
-        {/* Left Side: Mascot & Friendly Branding (Reference 1 center layout) */}
-        <div className="md:col-span-5 bg-gradient-to-b from-[#4DA3FF] via-[#3B82F6] to-[#2563EB] p-8 text-white flex flex-col justify-between items-center text-center">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full text-xs font-bold font-child uppercase mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              Edukasi Ramah Anak
-            </div>
-            <h2 className="text-3xl font-black font-child tracking-wider">
-              BINTANG KECIL
-            </h2>
-            <p className="text-xs font-semibold text-sky-100 font-child mt-1">
-              Belajar Seru Bersama Kelinci Bimo 🐰
-            </p>
-          </div>
+    <div className="min-h-screen bg-child-pattern px-3 py-5 sm:px-5 lg:px-8 select-none">
+      <div className="mx-auto max-w-6xl overflow-hidden rounded-[32px] border-4 border-white/80 bg-white/90 shadow-[0_28px_80px_-20px_rgba(37,71,106,0.3)] backdrop-blur-sm">
+        <div className="grid lg:grid-cols-[1.02fr_1.38fr]">
+          <aside className="relative overflow-hidden bg-gradient-to-b from-[#45A9FF] via-[#2E82F6] to-[#1659D6] p-6 sm:p-8 lg:p-10 text-white">
+            <div className="absolute -left-10 top-8 h-32 w-32 rounded-full bg-white/15 blur-3xl" />
+            <div className="absolute -bottom-10 right-6 h-36 w-36 rounded-full bg-cyan-200/20 blur-3xl" />
+            <div className="absolute left-6 top-16 text-sm text-yellow-100/90">✦</div>
+            <div className="absolute right-8 top-20 text-lg text-cyan-100/90">★</div>
+            <div className="absolute bottom-16 right-12 text-xl text-orange-100/90">☁️</div>
 
-          <div className="my-6">
-            <BimoMascot expression="happy" size="lg" />
-          </div>
-
-          <div className="text-xs text-sky-100 font-child space-y-1">
-            <p>✓ 100% Bebas Iklan & Pelacak</p>
-            <p>✓ Materi Literasi, Berhitung & Coding</p>
-            <p>✓ Pemisahan Ketat Mode Anak & Orang Tua</p>
-          </div>
-        </div>
-
-        {/* Right Side: Setup Form */}
-        <div className="md:col-span-7 p-6 sm:p-8 flex flex-col justify-center">
-          <div className="mb-6">
-            <h3 className="text-2xl font-black text-[#25476A] font-child">
-              Selamat Datang Ayah & Bunda! 👋
-            </h3>
-            <p className="text-xs font-semibold text-slate-500 font-child mt-1">
-              Daftarkan akun orang tua dan buat profil buah hati Anda untuk memulai.
-            </p>
-          </div>
-
-          {errorMsg && (
-            <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-semibold">
-              {errorMsg}
-            </div>
-          )}
-
-          <form onSubmit={handleRegister} className="space-y-4">
-            {/* Parent Section */}
-            <div className="space-y-3">
-              <span className="text-xs font-bold text-sky-600 uppercase font-child tracking-wider">
-                1. Akun Orang Tua
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  placeholder="Nama Ayah / Bunda"
-                  value={parentName}
-                  onChange={(e) => setParentName(e.target.value)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:border-sky-500 focus:outline-none"
-                  required
-                />
-                <input
-                  type="email"
-                  placeholder="Email Orang Tua"
-                  value={parentEmail}
-                  onChange={(e) => setParentEmail(e.target.value)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:border-sky-500 focus:outline-none"
-                  required
-                />
+            <div className="relative z-10 flex h-full flex-col justify-between">
+              <div className="text-center lg:text-left">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/12 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-yellow-100 shadow-inner">
+                  <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
+                  Edukasi Ramah Anak
+                </div>
+                <h1 className="mt-4 font-display text-3xl font-bold tracking-wide text-white sm:text-4xl">
+                  BINTANG KECIL
+                </h1>
+                <p className="mt-2 text-sm font-semibold text-sky-100">
+                  Belajar Seru Bersama Kelinci Bimo <span className="text-lg">🐰</span>
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  type="password"
-                  placeholder="Kata Sandi (opsional)"
-                  value={parentPassword}
-                  onChange={(e) => setParentPassword(e.target.value)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:border-sky-500 focus:outline-none"
-                />
-                <input
-                  type="password"
-                  placeholder="PIN Orang Tua (4-6 angka)"
-                  value={parentPin}
-                  onChange={(e) => setParentPin(e.target.value.replace(/\D/g, ""))}
-                  inputMode="numeric"
-                  maxLength={6}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:border-sky-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Child Section */}
-            <div className="space-y-3 pt-2 border-t border-slate-100">
-              <span className="text-xs font-bold text-amber-600 uppercase font-child tracking-wider">
-                2. Profil Anak Pertama
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  placeholder="Nama Panggilan Anak (cth: Adit)"
-                  value={childNickname}
-                  onChange={(e) => setChildNickname(e.target.value)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:border-amber-500 focus:outline-none"
-                  required
-                />
-                <select
-                  value={childAge}
-                  onChange={(e) => setChildAge(parseInt(e.target.value, 10))}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:border-amber-500 focus:outline-none"
-                >
-                  <option value={2}>Usia 2-3 Tahun (Pemula 🌱)</option>
-                  <option value={4}>Usia 4-5 Tahun (Berkembang 🌿)</option>
-                  <option value={6}>Usia 6-7 Tahun (Lanjutan 🌳)</option>
-                  <option value={8}>Usia 8-10 Tahun (Kritis 🚀)</option>
-                  <option value={11}>Usia 11-12 Tahun (Penalaran 🧠)</option>
-                </select>
+              <div className="my-8 flex justify-center">
+                <div className="relative">
+                  <div className="absolute inset-3 rounded-full bg-yellow-200/35 blur-2xl" />
+                  <div className="relative rounded-full border-4 border-white/70 bg-white/10 p-4 shadow-[0_18px_40px_rgba(15,89,188,0.35)] backdrop-blur-sm">
+                    <BimoMascot expression="happy" size="lg" className="drop-shadow-[0_12px_15px_rgba(10,40,90,0.2)]" />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 font-child block mb-1">
-                  Pilih Avatar Hewan Lucu:
-                </label>
-                <div className="flex gap-2">
-                  {["🐰", "🦁", "🐼", "🦊", "🦄", "🐯"].map((av) => (
-                    <button
-                      key={av}
-                      type="button"
-                      onClick={() => setChildAvatar(av)}
-                      className={`w-9 h-9 rounded-xl text-lg flex items-center justify-center border transition-all ${
-                        childAvatar === av
-                          ? "bg-amber-100 border-amber-500 scale-110 shadow-xs"
-                          : "bg-slate-50 border-slate-200"
-                      }`}
-                    >
-                      {av}
-                    </button>
-                  ))}
+              <div className="space-y-3 text-sm font-bold text-sky-50">
+                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/8 px-3 py-2">
+                  <ShieldCheck className="h-4 w-4 text-amber-300" />
+                  <span>100% Bebas Iklan & Pelacak</span>
+                </div>
+                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/8 px-3 py-2">
+                  <Sparkles className="h-4 w-4 text-amber-300" />
+                  <span>Materi Literasi, Berhitung & Coding</span>
+                </div>
+                <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-white/8 px-3 py-2">
+                  <KeyRound className="h-4 w-4 text-amber-300" />
+                  <span>Pemisahan Ketat Mode Anak & Orang Tua</span>
                 </div>
               </div>
             </div>
+          </aside>
 
-            <div className="pt-4 flex flex-col sm:flex-row gap-3">
-              <button
-                type="submit"
-                className="flex-1 py-3 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-amber-950 font-child font-black text-base rounded-2xl shadow-md transition-transform active:scale-95 border border-amber-500"
-              >
-                Mulai Petualangan Belajar 🚀
-              </button>
-              <button
-                type="button"
-                onClick={handleQuickDemo}
-                className="px-5 py-3 bg-sky-100 hover:bg-sky-200 text-sky-800 font-child font-bold text-xs rounded-2xl transition-all"
-                title="Langsung coba dengan data demo terisi"
-              >
-                Coba Demo Langsung
-              </button>
+          <main className="relative bg-[radial-gradient(circle_at_top_left,_rgba(255,210,91,0.22),_transparent_22%),radial-gradient(circle_at_bottom_right,_rgba(74,163,255,0.18),_transparent_28%),#F9FDFF] p-5 sm:p-8 lg:p-10">
+            <div className="absolute right-8 top-8 text-2xl text-yellow-300">✨</div>
+            <div className="absolute left-8 bottom-10 text-xl text-sky-300">⭐</div>
+
+            <div className="relative z-10">
+              <div className="mb-6">
+                <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-sky-700">
+                  Daftar akun
+                </span>
+                <h2 className="mt-3 font-display text-3xl font-bold text-[#21466D] sm:text-4xl">
+                  Selamat Datang Ayah & Bunda! 👋
+                </h2>
+                <p className="mt-2 text-sm font-semibold text-slate-500">
+                  Daftarkan akun orang tua dan buat profil buah hati Anda untuk memulai.
+                </p>
+              </div>
+
+              {errorMsg && (
+                <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">
+                  {errorMsg}
+                </div>
+              )}
+
+              <form onSubmit={handleRegister} className="space-y-5">
+                <div className="rounded-[28px] border border-sky-100 bg-white/80 p-4 shadow-[0_14px_35px_-18px_rgba(39,105,174,0.3)]">
+                  <div className="mb-4 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.2em] text-sky-600">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-700">1</span>
+                    Akun Orang Tua
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="relative block">
+                      <User className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-sky-500" />
+                      <input
+                        type="text"
+                        placeholder="Nama Ayah / Bunda"
+                        value={parentName}
+                        onChange={(e) => setParentName(e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:border-sky-400 focus:bg-white focus:outline-none"
+                        required
+                      />
+                    </label>
+
+                    <label className="relative block">
+                      <Mail className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-sky-500" />
+                      <input
+                        type="email"
+                        placeholder="Email Orang Tua"
+                        value={parentEmail}
+                        onChange={(e) => setParentEmail(e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:border-sky-400 focus:bg-white focus:outline-none"
+                        required
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="relative block">
+                      <Lock className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-sky-500" />
+                      <input
+                        type="password"
+                        placeholder="Kata Sandi"
+                        value={parentPassword}
+                        onChange={(e) => setParentPassword(e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:border-sky-400 focus:bg-white focus:outline-none"
+                      />
+                    </label>
+
+                    <label className="relative block">
+                      <KeyRound className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-sky-500" />
+                      <input
+                        type="password"
+                        placeholder="PIN Orang Tua (4-6 angka)"
+                        value={parentPin}
+                        onChange={(e) => setParentPin(e.target.value.replace(/\D/g, ""))}
+                        inputMode="numeric"
+                        maxLength={6}
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:border-sky-400 focus:bg-white focus:outline-none"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="rounded-[28px] border border-amber-100 bg-white/80 p-4 shadow-[0_14px_35px_-18px_rgba(255,157,0,0.3)]">
+                  <div className="mb-4 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.2em] text-amber-600">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700">2</span>
+                    Profil Anak Pertama
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="relative block sm:col-span-2">
+                      <User className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-amber-500" />
+                      <input
+                        type="text"
+                        placeholder="Nama Panggilan Anak (cth: Adit)"
+                        value={childNickname}
+                        onChange={(e) => setChildNickname(e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-semibold text-slate-700 placeholder:text-slate-400 focus:border-amber-400 focus:bg-white focus:outline-none"
+                        required
+                      />
+                    </label>
+
+                    <label className="relative block sm:col-span-2">
+                      <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-500">
+                        Usia anak
+                      </span>
+                      <select
+                        value={childAge}
+                        onChange={(e) => setChildAge(parseInt(e.target.value, 10))}
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 px-3 text-sm font-semibold text-slate-700 focus:border-amber-400 focus:bg-white focus:outline-none"
+                      >
+                        <option value={2}>Usia 2-3 Tahun (Pemula 🌱)</option>
+                        <option value={4}>Usia 4-5 Tahun (Berkembang 🌿)</option>
+                        <option value={6}>Usia 6-7 Tahun (Lanjutan 🌳)</option>
+                        <option value={8}>Usia 8-10 Tahun (Kritis 🚀)</option>
+                        <option value={11}>Usia 11-12 Tahun (Penalaran 🧠)</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-500">
+                      Pilih Avatar Hewan Lucu
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {["🐰", "🦁", "🐼", "🦊", "🦄", "🐯"].map((av) => (
+                        <button
+                          key={av}
+                          type="button"
+                          onClick={() => setChildAvatar(av)}
+                          className={`flex h-11 w-11 items-center justify-center rounded-2xl border text-xl transition-all ${
+                            childAvatar === av
+                              ? "scale-105 border-amber-400 bg-amber-100 shadow-[0_8px_18px_rgba(251,191,36,0.35)]"
+                              : "border-slate-200 bg-slate-50 hover:border-sky-200 hover:bg-sky-50"
+                          }`}
+                        >
+                          {av}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+                  <button
+                    type="submit"
+                    className="flex-1 rounded-2xl border border-amber-500 bg-gradient-to-r from-[#FFD75A] via-[#FFC933] to-[#FFB347] px-5 py-3 text-base font-black text-amber-950 shadow-[0_6px_0_#E39A00,0_18px_24px_-8px_rgba(255,179,71,0.65)] transition-transform active:scale-[0.98]"
+                  >
+                    Mulai Petualangan Belajar 🚀
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleQuickDemo}
+                    className="rounded-2xl border border-sky-200 bg-sky-100 px-5 py-3 text-sm font-extrabold text-sky-700 transition hover:bg-sky-200"
+                    title="Langsung coba dengan data demo terisi"
+                  >
+                    Coba Demo Langsung
+                  </button>
+                </div>
+              </form>
             </div>
-          </form>
+          </main>
         </div>
       </div>
     </div>
