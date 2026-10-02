@@ -78,10 +78,9 @@ export const ChildHome: React.FC<ChildHomeProps> = ({ child, onNavigateTab, onSe
 
           <div className="col-span-2 flex justify-end items-end">
             <div className="relative">
-              <div className="absolute top-8 -left-14 sm:top-10 sm:-left-24 bg-white rounded-2xl rounded-br-sm px-3 py-1.5 font-display font-bold text-[#25476A] text-sm sm:text-lg shadow-md pop-in">
-                Halo! 🐰
+              <div style={{ transform: "scaleX(-1)" }}>
+                <BimoMascot full view="three" size="xl" expression="happy" hat={child.equippedHat} glasses={child.equippedGlasses} className="scale-[.8] sm:scale-100 origin-bottom" />
               </div>
-              <BimoMascot full view="three" size="xl" expression="happy" hat={child.equippedHat} glasses={child.equippedGlasses} className="scale-[.8] sm:scale-100 origin-bottom" />
             </div>
           </div>
         </div>
