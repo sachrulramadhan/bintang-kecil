@@ -32,6 +32,15 @@ export default function App() {
   const [isParentGateOpen, setIsParentGateOpen] = useState(false);
   const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
   const [isRestBreakOpen, setIsRestBreakOpen] = useState(false);
+  const sessionSecondsRef = useRef(0);
+  const snoozeUntilSecondsRef = useRef<number | null>(null);
+
+  // Reset penghitung sesi setiap kali anak berganti atau kembali ke mode anak
+  useEffect(() => {
+    sessionSecondsRef.current = 0;
+    snoozeUntilSecondsRef.current = null;
+    setIsRestBreakOpen(false);
+  }, [activeChildId, currentMode]);
 
   // Muat data tersimpan saat aplikasi dibuka.
   // Pengguna baru akan melihat layar pendaftaran orang tua (data contoh hanya lewat tombol demo).
@@ -57,19 +66,37 @@ export default function App() {
 
   const activeChild = childrenList.find((c) => c.id === activeChildId) || childrenList[0];
 
-  // Screen time tracking tick (every 10 seconds)
+  // Screen time tracking tick (setiap 10 detik)
   useEffect(() => {
     if (!activeChild || currentMode !== "child") return;
 
     const timer = setInterval(() => {
       const child = storage.getChild(activeChild.id);
       if (!child) return;
-      child.todaySecondsPlayed += 10;
+
+      sessionSecondsRef.current += 10;
+      child.todaySecondsPlayed = (child.todaySecondsPlayed || 0) + 10;
+      child.lastActiveDate = new Date().toISOString().slice(0, 10);
       storage.saveChild(child);
 
-      // Check daily limit if set (> 0)
+      // Batas waktu tidak aktif jika dailyLimitMin <= 0 (Tanpa Batas)
+      if (child.dailyLimitMin <= 0) return;
+
+      // Jangan pernah memunculkan waktu istirahat saat anak baru saja masuk aplikasi!
+      // Anak harus bermain minimal 10 menit dalam sesi ini sebelum diingatkan istirahat.
+      const MIN_SESSION_SECONDS_BEFORE_BREAK = 10 * 60; // 10 menit
+      if (sessionSecondsRef.current < MIN_SESSION_SECONDS_BEFORE_BREAK) return;
+
+      // Jika sedang dalam masa jeda (snooze) setelah anak menekan 'Lanjut Bermain'
       if (
-        child.dailyLimitMin > 0 &&
+        snoozeUntilSecondsRef.current !== null &&
+        child.todaySecondsPlayed < snoozeUntilSecondsRef.current
+      ) {
+        return;
+      }
+
+      // Tampilkan jeda istirahat jika waktu bermain hari ini telah mencapai batas harian
+      if (
         child.todaySecondsPlayed >= child.dailyLimitMin * 60 &&
         !isRestBreakOpen
       ) {
@@ -78,7 +105,7 @@ export default function App() {
     }, 10000);
 
     return () => clearInterval(timer);
-  }, [activeChild, currentMode, isRestBreakOpen]);
+  }, [activeChild?.id, currentMode, isRestBreakOpen]);
 
   // Handle Parent Gate Success -> Switch to Parent Dashboard
   const handleParentGateSuccess = () => {
