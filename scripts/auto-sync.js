@@ -69,12 +69,10 @@ async function doSync() {
     }
 
     const changedFiles = status
-      .split('\n')
-      .map((line) => {
-        const match = line.match(/^.{2}\s+(.*)$/);
-        return match ? match[1].trim() : null;
-      })
-      .filter(Boolean);
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => line.replace(/^[^\s]+\s+/, '').trim());
 
     const now = new Date();
     const timeStr = now.toLocaleTimeString('id-ID', { hour12: false });
