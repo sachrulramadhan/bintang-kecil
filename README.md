@@ -8,7 +8,14 @@ npm install
 npm run dev      # http://localhost:3000
 npm run lint     # cek tipe TypeScript
 npm run build    # hasil di folder dist/
+npm run sync     # auto-sync perubahan langsung ke GitHub
 ```
+
+## Sinkronisasi Otomatis ke GitHub
+Setiap perubahan file dapat langsung disinkronkan ke GitHub secara otomatis:
+- Klik ganda file `start-auto-sync.bat`, ATAU
+- Jalankan `npm run sync` (atau `node scripts/auto-sync.js`) di terminal.
+Watcher akan memantau folder dan otomatis melakukan commit & push ke GitHub dalam hitungan detik setelah file disimpan.
 
 ## CMS Admin Master (Cloudflare Workers + D1)
 
