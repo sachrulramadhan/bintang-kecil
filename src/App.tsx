@@ -320,13 +320,10 @@ export default function App() {
         isOpen={isRestBreakOpen}
         onContinue={() => {
           setIsRestBreakOpen(false);
-          // Add 15 mins extra extension
-          const child = storage.getChild(activeChild.id);
-          if (child) {
-            child.dailyLimitMin += 15;
-            storage.saveChild(child);
-            refreshAllData();
-          }
+          // Berikan perpanjangan waktu 15 menit bermain untuk sesi ini tanpa merusak konfigurasi batas waktu orang tua
+          const currentPlayed = storage.getChild(activeChild.id)?.todaySecondsPlayed || 0;
+          snoozeUntilSecondsRef.current = currentPlayed + 15 * 60;
+          sessionSecondsRef.current = 0;
         }}
       />
     </div>
