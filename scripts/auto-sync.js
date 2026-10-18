@@ -70,7 +70,10 @@ async function doSync() {
 
     const changedFiles = status
       .split('\n')
-      .map((line) => line.trim().slice(3))
+      .map((line) => {
+        const match = line.match(/^.{2}\s+(.*)$/);
+        return match ? match[1].trim() : null;
+      })
       .filter(Boolean);
 
     const now = new Date();
