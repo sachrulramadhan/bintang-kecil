@@ -86,7 +86,23 @@ class StorageRepository {
 
   // Children Profiles
   getChildren(): ChildProfile[] {
-    return this.getItem<ChildProfile[]>("children", []);
+    const children = this.getItem<ChildProfile[]>("children", []);
+    const today = new Date().toISOString().slice(0, 10);
+    let modified = false;
+
+    const updated = children.map((c) => {
+      if (c.lastActiveDate !== today) {
+        c.lastActiveDate = today;
+        c.todaySecondsPlayed = 0;
+        modified = true;
+      }
+      return c;
+    });
+
+    if (modified) {
+      this.setItem("children", updated);
+    }
+    return updated;
   }
 
   getChild(childId: string): ChildProfile | null {
@@ -94,8 +110,17 @@ class StorageRepository {
     return children.find((c) => c.id === childId) || null;
   }
 
+  resetChildTodaySeconds(childId: string): void {
+    const child = this.getChild(childId);
+    if (child) {
+      child.todaySecondsPlayed = 0;
+      child.lastActiveDate = new Date().toISOString().slice(0, 10);
+      this.saveChild(child);
+    }
+  }
+
   saveChild(child: ChildProfile): void {
-    const children = this.getChildren();
+    const children = this.getItem<ChildProfile[]>("children", []);
     const index = children.findIndex((c) => c.id === child.id);
     if (index >= 0) {
       children[index] = child;
