@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "cms:dev": "npx wrangler dev",
     "cms:migrate:local": "npx wrangler d1 migrations apply bintang-kecil-cms --local",
-    "cms:migrate:remote": "npx wrangler d1 migrations apply bintang-kecil-cms --remote"
+    "cms:migrate:remote": "npx wrangler d1 migrations apply bintang-kecil-cms --remote",
+    "sync": "node scripts/auto-sync.js"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
