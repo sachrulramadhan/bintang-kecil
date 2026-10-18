@@ -669,6 +669,35 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 </p>
               </div>
 
+              {/* Status Pemakaian Hari Ini */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Waktu Bermain Hari Ini
+                  </span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-black text-slate-800">
+                      {Math.floor((activeChild.todaySecondsPlayed || 0) / 60)}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-500">
+                      menit {activeChild.dailyLimitMin > 0 ? `(Batas: ${activeChild.dailyLimitMin} menit)` : "(Tanpa Batas)"}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    storage.resetChildTodaySeconds(activeChild.id);
+                    onRefreshData();
+                    setSaveSuccessMsg("Waktu bermain hari ini berhasil di-reset!");
+                    setTimeout(() => setSaveSuccessMsg(""), 3000);
+                  }}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all self-start sm:self-center"
+                >
+                  🔄 Reset Waktu Hari Ini
+                </button>
+              </div>
+
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
                 <h3 className="font-bold text-sm text-slate-800">
                   Pilih Batas Waktu Harian untuk {activeChild.nickname}:
@@ -693,7 +722,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 </div>
 
                 <div className="pt-4 border-t text-xs text-slate-500 leading-relaxed">
-                  💡 Saat batas waktu tercapai, Bimo akan mengingatkan anak dengan ramah untuk minum air, mengistirahatkan mata, dan bergerak sejenak tanpa memotong progres yang sedang dikerjakan.
+                  💡 Saat batas waktu tercapai, Bimo akan mengingatkan anak dengan ramah untuk minum air, mengistirahatkan mata, dan bergerak sejenak tanpa memotong progres yang sedang dikerjakan. Pengingat tidak akan muncul saat baru masuk aplikasi.
                 </div>
               </div>
             </div>
