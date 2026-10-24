@@ -457,6 +457,31 @@ class StorageRepository {
       lastStep: 3,
     });
   }
+
+  // --- ElevenLabs Voice Configuration ---
+  getElevenLabsApiKey(): string {
+    return this.getItem<string>("elevenlabs_api_key", "");
+  }
+
+  setElevenLabsApiKey(key: string): void {
+    this.setItem("elevenlabs_api_key", key.trim());
+  }
+
+  getElevenLabsVoiceId(): string {
+    return this.getItem<string>("elevenlabs_voice_id", "21m00Tcm4TlvDq8ikWAM"); // Default Rachel / friendly narrator
+  }
+
+  setElevenLabsVoiceId(voiceId: string): void {
+    this.setItem("elevenlabs_voice_id", voiceId.trim());
+  }
+
+  isElevenLabsEnabled(): boolean {
+    return this.getItem<boolean>("elevenlabs_enabled", true);
+  }
+
+  setElevenLabsEnabled(enabled: boolean): void {
+    this.setItem("elevenlabs_enabled", enabled);
+  }
 }
 
 export const storage = new StorageRepository();
