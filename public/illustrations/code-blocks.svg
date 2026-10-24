@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
+  <rect width="400" height="300" rx="30" fill="#F0FDFA"/>
+  <!-- Block 1: Right -->
+  <rect x="60" y="50" width="280" height="55" rx="16" fill="#0EA5E9"/>
+  <text x="100" y="86" font-size="22" font-weight="bold" fill="#FFFFFF">Maju ke Kanan ➡️</text>
+  <!-- Block 2: Loop -->
+  <rect x="60" y="120" width="280" height="55" rx="16" fill="#8B5CF6"/>
+  <text x="100" y="156" font-size="22" font-weight="bold" fill="#FFFFFF">Ulangi 3x 🔁</text>
+  <!-- Block 3: Jump -->
+  <rect x="60" y="190" width="280" height="55" rx="16" fill="#10B981"/>
+  <text x="100" y="226" font-size="22" font-weight="bold" fill="#FFFFFF">Melompat ke Atas ⬆️</text>
+</svg>

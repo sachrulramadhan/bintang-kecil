@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
+  <!-- Sky -->
+  <rect width="400" height="300" fill="#FEF08A"/>
+  <!-- Hills -->
+  <ellipse cx="200" cy="320" rx="260" ry="100" fill="#22C55E"/>
+  <!-- Rumah Gadang Traditional House -->
+  <g transform="translate(100, 80)">
+    <!-- Curved Horn Roofs (Gonjong) -->
+    <path d="M-20 60 Q50 10 100 60 Q150 10 220 60 L180 85 Q100 50 20 85 Z" fill="#991B1B" stroke="#7F1D1D" stroke-width="3"/>
+    <!-- Horn Peaks -->
+    <path d="M-20 60 Q-40 20 -30 10 Q-15 30 0 65" fill="#7F1D1D"/>
+    <path d="M220 60 Q240 20 230 10 Q215 30 200 65" fill="#7F1D1D"/>
+    <!-- House Wooden Body with Carvings -->
+    <rect x="20" y="85" width="160" height="70" fill="#B45309" stroke="#78350F" stroke-width="3"/>
+    <!-- Windows -->
+    <rect x="35" y="95" width="22" height="25" fill="#FEF3C7" stroke="#78350F" stroke-width="2"/>
+    <rect x="75" y="95" width="22" height="25" fill="#FEF3C7" stroke="#78350F" stroke-width="2"/>
+    <rect x="115" y="95" width="22" height="25" fill="#FEF3C7" stroke="#78350F" stroke-width="2"/>
+    <rect x="145" y="95" width="22" height="25" fill="#FEF3C7" stroke="#78350F" stroke-width="2"/>
+    <!-- Wooden Pillars (Stilts) -->
+    <line x1="30" y1="155" x2="30" y2="195" stroke="#78350F" stroke-width="6"/>
+    <line x1="70" y1="155" x2="70" y2="195" stroke="#78350F" stroke-width="6"/>
+    <line x1="130" y1="155" x2="130" y2="195" stroke="#78350F" stroke-width="6"/>
+    <line x1="170" y1="155" x2="170" y2="195" stroke="#78350F" stroke-width="6"/>
+  </g>
+</svg>

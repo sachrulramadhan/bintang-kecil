@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
+  <!-- Deep Space -->
+  <rect width="400" height="300" fill="#0F172A"/>
+  <!-- Stars -->
+  <circle cx="50" cy="40" r="2" fill="#FFFFFF"/>
+  <circle cx="120" cy="70" r="3" fill="#FDE047"/>
+  <circle cx="280" cy="30" r="2" fill="#FFFFFF"/>
+  <circle cx="350" cy="80" r="3" fill="#FDE047"/>
+  <circle cx="80" cy="180" r="2" fill="#FFFFFF"/>
+  <circle cx="330" cy="220" r="2" fill="#FFFFFF"/>
+  <!-- Moon Surface with Crystals -->
+  <path d="M-20 230 Q200 190 420 230 L420 320 L-20 320 Z" fill="#475569"/>
+  <polygon points="90,210 98,185 106,210" fill="#38BDF8" opacity="0.9"/>
+  <polygon points="120,220 126,195 132,220" fill="#C084FC" opacity="0.9"/>
+  <polygon points="280,215 288,190 296,215" fill="#34D399" opacity="0.9"/>
+  <!-- Star Rocket -->
+  <g transform="translate(180, 70) rotate(35)">
+    <!-- Rocket Flame -->
+    <polygon points="15,90 25,120 35,90" fill="#F97316"/>
+    <polygon points="19,90 25,110 31,90" fill="#FDE047"/>
+    <!-- Fins -->
+    <polygon points="5,70 15,90 25,90" fill="#EF4444"/>
+    <polygon points="45,70 35,90 25,90" fill="#EF4444"/>
+    <!-- Body -->
+    <path d="M15 40 Q25 5 35 40 L35 90 L15 90 Z" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+    <!-- Window -->
+    <circle cx="25" cy="50" r="8" fill="#38BDF8" stroke="#0284C7" stroke-width="2"/>
+    <!-- Bimo looking out -->
+    <circle cx="25" cy="50" r="5" fill="#FFFFFF"/>
+  </g>
+</svg>

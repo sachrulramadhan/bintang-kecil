@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
+  <rect width="400" height="300" rx="30" fill="#FFFBEB"/>
+  <!-- Circle -->
+  <circle cx="80" cy="150" r="50" fill="#EF4444" stroke="#DC2626" stroke-width="5"/>
+  <text x="80" y="235" font-size="18" font-weight="bold" fill="#78350F" text-anchor="middle">Lingkaran</text>
+  <!-- Triangle -->
+  <polygon points="200,95 150,195 250,195" fill="#F59E0B" stroke="#D97706" stroke-width="5"/>
+  <text x="200" y="235" font-size="18" font-weight="bold" fill="#78350F" text-anchor="middle">Segitiga</text>
+  <!-- Square -->
+  <rect x="275" y="100" width="95" height="95" rx="10" fill="#3B82F6" stroke="#2563EB" stroke-width="5"/>
+  <text x="322" y="235" font-size="18" font-weight="bold" fill="#78350F" text-anchor="middle">Persegi</text>
+</svg>
