@@ -218,7 +218,6 @@ export default function App() {
           child={activeChild}
           onOpenParentGate={() => setIsParentGateOpen(true)}
           onOpenStreakModal={() => setIsStreakModalOpen(true)}
-          onLogout={handleLogout}
           pageHelpText={`Halo ${activeChild.nickname}! Sentuh kartu yang kamu sukai untuk mulai belajar dan bermain bersama Bimo!`}
         />
       </div>
