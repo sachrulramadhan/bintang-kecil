@@ -31,11 +31,10 @@ export const ParentGateModal: React.FC<ParentGateModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setStage("math");
-      setPinInput("");
-      generateProblem();
+      // Langsung disetujui otomatis sesuai permintaan
+      onSuccess();
     }
-  }, [isOpen]);
+  }, [isOpen, onSuccess]);
 
   if (!isOpen) return null;
 
