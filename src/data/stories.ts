@@ -349,7 +349,7 @@ export const ORIGINAL_STORIES: Story[] = [
       {
         pageNum: 1,
         text: "Tetesan air kecil bernama Titi sedang berenang santai di permukaan danau yang berkilau.",
-        illustration: "💧🌊☀️🌿",
+        illustration: "/illustrations/story-sci-01.svg",
         keywords: ["titi", "danau", "matahari"],
       },
       {
