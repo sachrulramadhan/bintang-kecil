@@ -77,14 +77,16 @@ export const StatusHeader: React.FC<StatusHeaderProps> = ({
             <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          <button
-            onClick={onLogout}
-            className="w-9 h-9 sm:w-11 sm:h-11 bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 rounded-full flex items-center justify-center text-rose-600 shadow-sm transition-all active:scale-90 hover:scale-105"
-            title="Logout ke Pendaftaran"
-            aria-label="Logout ke Pendaftaran"
-          >
-            <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="w-9 h-9 sm:w-11 sm:h-11 bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 rounded-full flex items-center justify-center text-rose-600 shadow-sm transition-all active:scale-90 hover:scale-105"
+              title="Logout ke Pendaftaran"
+              aria-label="Logout ke Pendaftaran"
+            >
+              <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          )}
         </div>
 
         {/* 
