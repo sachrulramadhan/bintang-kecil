@@ -183,7 +183,7 @@ export const ORIGINAL_STORIES: Story[] = [
       {
         pageNum: 1,
         text: "Malam hari di bukit bintang, Bimo memasang helm astronot mini dan menekan tombol hijau di kokpit roket mainannya.",
-        illustration: "🐰🚀🌕⭐🌃",
+        illustration: "/illustrations/story-adv-02.svg",
         keywords: ["roket", "helm", "kokpit"],
       },
       {
