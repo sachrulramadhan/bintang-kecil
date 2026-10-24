@@ -90,10 +90,17 @@ class StorageRepository {
     const today = new Date().toISOString().slice(0, 10);
     let modified = false;
 
+    const allCategories: CategoryId[] = [
+      "stories", "mathematics", "science", "social", "arabic", "mandarin", "indonesian", "english", "coding"
+    ];
     const updated = children.map((c) => {
       if (c.lastActiveDate !== today) {
         c.lastActiveDate = today;
         c.todaySecondsPlayed = 0;
+        modified = true;
+      }
+      if (!c.enabledCategories || c.enabledCategories.length < allCategories.length) {
+        c.enabledCategories = allCategories;
         modified = true;
       }
       return c;
