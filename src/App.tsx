@@ -31,7 +31,7 @@ export default function App() {
   const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
   const [isRestBreakOpen, setIsRestBreakOpen] = useState(false);
   const sessionSecondsRef = useRef(0);
-  const snoozeUntilSecondsRef.current = null;
+  const snoozeUntilSecondsRef = useRef<number | null>(null);
 
   // Reset penghitung sesi setiap kali anak berganti atau kembali ke mode anak
   useEffect(() => {
