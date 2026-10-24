@@ -906,6 +906,103 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* ElevenLabs AI Voice Over Section */}
+              <div className="bg-gradient-to-br from-indigo-50/80 via-white to-sky-50/60 p-6 rounded-2xl border-2 border-indigo-200/80 shadow-xs space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-base text-indigo-950 flex items-center gap-2">
+                      <span>🎙️</span>
+                      <span>Integrasi ElevenLabs Voice Over AI</span>
+                    </span>
+                    <span className="text-xs text-indigo-900/70 block mt-0.5">
+                      Gunakan suara AI ElevenLabs yang lebih hidup, ramah, dan alami untuk membacakan dongeng & narasi Bimo.
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={elevenEnabled}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        setElevenEnabled(val);
+                        storage.setElevenLabsEnabled(val);
+                      }}
+                      className="w-5 h-5 text-indigo-600 rounded"
+                    />
+                  </label>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      ElevenLabs API Key
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="xi-... (Masukkan ElevenLabs API Key Anda)"
+                      value={elevenApiKey}
+                      onChange={(e) => setElevenApiKey(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Kunci API disimpan dengan aman di penyimpanan lokal peramban Anda.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Voice ID ElevenLabs
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="21m00Tcm4TlvDq8ikWAM (Rachel / Suara Ramah Anak)"
+                      value={elevenVoiceId}
+                      onChange={(e) => setElevenVoiceId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {elevenSavedMsg && (
+                    <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200">
+                      {elevenSavedMsg}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        storage.setElevenLabsApiKey(elevenApiKey);
+                        storage.setElevenLabsVoiceId(elevenVoiceId);
+                        storage.setElevenLabsEnabled(elevenEnabled);
+                        setElevenSavedMsg("Konfigurasi ElevenLabs berhasil disimpan!");
+                        setTimeout(() => setElevenSavedMsg(""), 3000);
+                      }}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl shadow-xs transition active:scale-95"
+                    >
+                      Simpan Konfigurasi ElevenLabs
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        audio.speak(
+                          "Halo teman kecil! Aku Bimo, mari belajar dan berpetualang bersama di Bintang Kecil!",
+                          {
+                            interrupt: true,
+                            lang: "id-ID",
+                          }
+                        );
+                      }}
+                      className="px-4 py-2 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-extrabold rounded-xl transition active:scale-95 flex items-center gap-1.5"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                      <span>Tes Suara Bimo Sekarang</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
