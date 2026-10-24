@@ -414,7 +414,11 @@ export const ModuleRunner: React.FC<ModuleRunnerProps> = ({
                     className={`p-4 rounded-3xl border-3 flex flex-col items-center justify-center transition-all duration-200 shadow-md min-h-[110px] active:scale-95 ${cardStyle}`}
                   >
                     {opt.imageEmoji && (
-                      <span className="text-4xl mb-2 drop-shadow-sm">{opt.imageEmoji}</span>
+                      opt.imageEmoji.startsWith("/") || opt.imageEmoji.startsWith("http") ? (
+                        <img src={opt.imageEmoji} alt={opt.text} className="h-12 w-auto object-contain mb-2" />
+                      ) : (
+                        <span className="text-4xl mb-2 drop-shadow-sm">{opt.imageEmoji}</span>
+                      )
                     )}
                     <span className="font-child font-bold text-base sm:text-lg text-center">
                       {opt.text}
