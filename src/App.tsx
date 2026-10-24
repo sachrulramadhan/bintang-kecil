@@ -22,9 +22,7 @@ export default function App() {
   const [childrenList, setChildrenList] = useState<ChildProfile[]>([]);
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const [currentMode, setCurrentMode] = useState<"child" | "parent" | "select-child">("child");
-  const [isLoggedOut, setIsLoggedOut] = useState(
-    () => sessionStorage.getItem("bk:signed-out") === "true"
-  );
+  const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [activeChildTab, setActiveChildTab] = useState<NavTab>("home");
   const [selectedCategoryFromHome, setSelectedCategoryFromHome] = useState<CategoryId | undefined>(undefined);
 
@@ -33,7 +31,7 @@ export default function App() {
   const [isStreakModalOpen, setIsStreakModalOpen] = useState(false);
   const [isRestBreakOpen, setIsRestBreakOpen] = useState(false);
   const sessionSecondsRef = useRef(0);
-  const snoozeUntilSecondsRef = useRef<number | null>(null);
+  const snoozeUntilSecondsRef.current = null;
 
   // Reset penghitung sesi setiap kali anak berganti atau kembali ke mode anak
   useEffect(() => {
@@ -43,14 +41,23 @@ export default function App() {
   }, [activeChildId, currentMode]);
 
   // Muat data tersimpan saat aplikasi dibuka.
-  // Pengguna baru akan melihat layar pendaftaran orang tua (data contoh hanya lewat tombol demo).
+  // Otomatis siapkan data demo jika belum ada agar anak langsung masuk ke Beranda utama tanpa tertahan pendaftaran.
   useEffect(() => {
+    sessionStorage.removeItem("bk:signed-out");
     refreshAllData();
   }, []);
 
   const refreshAllData = () => {
-    const parent = storage.getParentAccount();
-    const children = storage.getChildren();
+    let parent = storage.getParentAccount();
+    let children = storage.getChildren();
+
+    // Jika belum ada akun tersimpan di peramban, langsung seed data demo agar langsung tampil beranda anak
+    if (!parent || children.length === 0) {
+      storage.seedDemoData();
+      parent = storage.getParentAccount();
+      children = storage.getChildren();
+    }
+
     const activeId = storage.getActiveChildId();
 
     setParentAccount(parent);
