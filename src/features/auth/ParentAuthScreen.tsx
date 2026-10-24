@@ -251,20 +251,35 @@ export const ParentAuthScreen: React.FC<ParentAuthScreenProps> = ({
                     ? "Masukkan email dan PIN akun tersimpan, atau daftar sebagai pengguna baru."
                     : "Daftarkan akun orang tua dan buat profil buah hati Anda untuk memulai."}
                 </p>
-                {existingParent && (
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => {
-                      setIsRegisteringNewParent((registering) => !registering);
-                      setErrorMsg("");
+                      if (!storage.getParentAccount() || storage.getChildren().length === 0) {
+                        storage.seedDemoData();
+                      }
+                      onAuthSuccess();
                     }}
-                    className="mt-3 rounded-xl border border-sky-200 bg-white px-4 py-2 text-sm font-extrabold text-sky-700 transition hover:bg-sky-50"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-extrabold text-emerald-800 transition hover:bg-emerald-100 active:scale-95 shadow-xs"
                   >
-                    {isRegisteringNewParent
-                      ? "Kembali ke akun tersimpan"
-                      : "Daftar akun orang tua baru"}
+                    <span>🏠</span>
+                    <span>Masuk Langsung ke Beranda Anak</span>
                   </button>
-                )}
+                  {existingParent && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRegisteringNewParent((registering) => !registering);
+                        setErrorMsg("");
+                      }}
+                      className="rounded-xl border border-sky-200 bg-white px-4 py-2 text-sm font-extrabold text-sky-700 transition hover:bg-sky-50"
+                    >
+                      {isRegisteringNewParent
+                        ? "Kembali ke akun tersimpan"
+                        : "Daftar akun orang tua baru"}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {errorMsg && (
