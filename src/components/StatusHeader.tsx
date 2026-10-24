@@ -7,7 +7,7 @@ interface StatusHeaderProps {
   child: ChildProfile;
   onOpenParentGate: () => void;
   onOpenStreakModal?: () => void;
-  onLogout: () => void;
+  onLogout?: () => void;
   pageHelpText?: string;
 }
 
