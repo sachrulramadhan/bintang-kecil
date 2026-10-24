@@ -129,7 +129,7 @@ export const ORIGINAL_STORIES: Story[] = [
       {
         pageNum: 1,
         text: "Bimo dan sahabatnya, Kimi si kura-kura, menemukan peta kuno berlukiskan pelangi tujuh warna di bawah pohon beringin tua.",
-        illustration: "🐰🐢🗺️🌳✨",
+        illustration: "/illustrations/story-adv-01.svg",
         keywords: ["peta", "pelangi", "kuno"],
       },
       {
