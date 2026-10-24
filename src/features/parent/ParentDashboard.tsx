@@ -66,6 +66,10 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   const [newChildAge, setNewChildAge] = useState(5);
   const [newChildAvatar, setNewChildAvatar] = useState("🐰");
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
+  const [elevenApiKey, setElevenApiKey] = useState(() => storage.getElevenLabsApiKey());
+  const [elevenVoiceId, setElevenVoiceId] = useState(() => storage.getElevenLabsVoiceId());
+  const [elevenEnabled, setElevenEnabled] = useState(() => storage.isElevenLabsEnabled());
+  const [elevenSavedMsg, setElevenSavedMsg] = useState("");
 
   const attempts = storage.getAttempts(activeChild.id);
   const masteryMap = storage.getMasteryMap(activeChild.id);
