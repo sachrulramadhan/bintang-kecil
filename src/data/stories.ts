@@ -73,7 +73,7 @@ export const ORIGINAL_STORIES: Story[] = [
       {
         pageNum: 1,
         text: "Momo si tupai kecil berhasil memanggang sepotong roti gandum hangat yang besar dan harum.",
-        illustration: "🐿️🥖🏠🍂",
+        illustration: "/illustrations/story-moral-02.svg",
         keywords: ["momo", "roti", "gandum"],
       },
       {
