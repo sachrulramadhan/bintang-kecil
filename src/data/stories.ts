@@ -13,7 +13,7 @@ export const ORIGINAL_STORIES: Story[] = [
       {
         pageNum: 1,
         text: "Pagi itu, Kakek Kelinci memetik sekeranjang stroberi merah yang ranum dan manis di kebun.",
-        illustration: "🧺🍓🐰🌤️",
+        illustration: "/illustrations/story-moral-01.svg",
         keywords: ["pagi", "stroberi", "kakek"],
       },
       {
