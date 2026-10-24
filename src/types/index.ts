@@ -30,6 +30,7 @@ export interface ParentAccount {
   id: string;
   name: string;
   email: string;
+  username?: string;
   passwordHash: string;
   pinHash: string;
   createdAt: string;
