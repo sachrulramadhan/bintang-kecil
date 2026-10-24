@@ -369,6 +369,21 @@ export const ModuleRunner: React.FC<ModuleRunnerProps> = ({
               </button>
             </div>
 
+            {/* Question Illustration / Image */}
+            {currentQuestion.imageEmoji && (
+              <div className="mb-4 flex justify-center">
+                {currentQuestion.imageEmoji.startsWith("/") || currentQuestion.imageEmoji.startsWith("http") ? (
+                  <img
+                    src={currentQuestion.imageEmoji}
+                    alt="Ilustrasi Soal"
+                    className="max-h-32 sm:max-h-40 w-auto object-contain rounded-2xl shadow-sm border border-amber-200 bg-amber-50/50 p-1"
+                  />
+                ) : (
+                  <span className="text-5xl sm:text-6xl drop-shadow-sm">{currentQuestion.imageEmoji}</span>
+                )}
+              </div>
+            )}
+
             {/* 4 Answer Cards Arranged Horizontally with Yellow Frames (Reference 2) */}
             <div className="w-full grid grid-cols-1 sm:grid-cols-3 md:grid-cols-3 gap-3.5 sm:gap-4 max-w-3xl mb-6">
               {currentQuestion.options.map((opt) => {
