@@ -1,8 +1,22 @@
+import { storage } from "./storage";
+
 class AudioService {
   private ctx: AudioContext | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
+  private currentAudioElement: HTMLAudioElement | null = null;
   private isSpeaking = false;
   private speechQueue: { text: string; lang: string; onEnd?: () => void }[] = [];
+  private audioCache = new Map<string, string>(); // Cache blob URLs for generated phrases
+  private cachedVoices: SpeechSynthesisVoice[] = [];
+
+  constructor() {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      this.cachedVoices = window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        this.cachedVoices = window.speechSynthesis.getVoices();
+      };
+    }
+  }
 
   private getAudioContext(): AudioContext | null {
     if (typeof window === "undefined") return null;
@@ -18,8 +32,8 @@ class AudioService {
     return this.ctx;
   }
 
-  // --- TTS Narration (Web Speech API) ---
-  speak(
+  // --- TTS Narration: ElevenLabs dengan Fallback Web Speech API ---
+  async speak(
     text: string,
     options: {
       lang?: "id-ID" | "en-US" | "ar-SA" | "zh-CN";
@@ -29,8 +43,8 @@ class AudioService {
       onEnd?: () => void;
       interrupt?: boolean;
     } = {}
-  ): void {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+  ): Promise<void> {
+    if (typeof window === "undefined") {
       options.onEnd?.();
       return;
     }
@@ -48,18 +62,127 @@ class AudioService {
       this.stopSpeaking();
     }
 
+    const elevenLabsApiKey =
+      storage.getElevenLabsApiKey() ||
+      ((import.meta as any).env?.VITE_ELEVENLABS_API_KEY as string | undefined);
+    const elevenLabsEnabled = storage.isElevenLabsEnabled();
+
+    // Jika ElevenLabs aktif dan memiliki API Key, coba gunakan ElevenLabs terlebih dahulu
+    if (elevenLabsEnabled && elevenLabsApiKey && elevenLabsApiKey.trim() !== "") {
+      try {
+        const played = await this.speakWithElevenLabs(text, elevenLabsApiKey, options);
+        if (played) {
+          return;
+        }
+      } catch (err) {
+        console.warn("ElevenLabs TTS gagal, beralih ke suara lokal browser:", err);
+      }
+    }
+
+    // Fallback: Web Speech API lokal browser
+    this.speakWithWebSpeech(text, { lang, rate, pitch, volume, onEnd });
+  }
+
+  private async speakWithElevenLabs(
+    text: string,
+    apiKey: string,
+    options: { onEnd?: () => void; volume?: number }
+  ): Promise<boolean> {
+    const voiceId =
+      storage.getElevenLabsVoiceId() ||
+      ((import.meta as any).env?.VITE_ELEVENLABS_VOICE_ID as string | undefined) ||
+      "21m00Tcm4TlvDq8ikWAM"; // Default Rachel / Friendly child-friendly tone
+
+    const cacheKey = `${voiceId}_${text.trim()}`;
+    let audioUrl = this.audioCache.get(cacheKey);
+
+    if (!audioUrl) {
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "xi-api-key": apiKey.trim(),
+          },
+          body: JSON.stringify({
+            text,
+            model_id: "eleven_multilingual_v2",
+            voice_settings: {
+              stability: 0.5,
+              similarity_boost: 0.75,
+              style: 0.15,
+              use_speaker_boost: true,
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`ElevenLabs status ${response.status}: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      audioUrl = URL.createObjectURL(blob);
+      this.audioCache.set(cacheKey, audioUrl);
+    }
+
+    const audio = new Audio(audioUrl);
+    audio.volume = options.volume ?? 1;
+    this.currentAudioElement = audio;
+    this.isSpeaking = true;
+
+    audio.onended = () => {
+      this.isSpeaking = false;
+      this.currentAudioElement = null;
+      options.onEnd?.();
+      this.processNextInQueue();
+    };
+
+    audio.onerror = () => {
+      this.isSpeaking = false;
+      this.currentAudioElement = null;
+      options.onEnd?.();
+      this.processNextInQueue();
+    };
+
+    await audio.play();
+    return true;
+  }
+
+  private speakWithWebSpeech(
+    text: string,
+    options: {
+      lang: "id-ID" | "en-US" | "ar-SA" | "zh-CN";
+      rate: number;
+      pitch: number;
+      volume: number;
+      onEnd?: () => void;
+    }
+  ): void {
+    if (!("speechSynthesis" in window)) {
+      options.onEnd?.();
+      return;
+    }
+
+    const { lang, rate, pitch, volume, onEnd } = options;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
     utterance.rate = rate;
     utterance.pitch = pitch;
     utterance.volume = volume;
 
-    // Try finding matching voice
+    // Prioritaskan suara Indonesia yang terdengar alami
     try {
-      const voices = window.speechSynthesis.getVoices();
-      const matchingVoice = voices.find((v) => v.lang.startsWith(lang.slice(0, 2)));
-      if (matchingVoice) {
-        utterance.voice = matchingVoice;
+      const voices = this.cachedVoices.length > 0 ? this.cachedVoices : window.speechSynthesis.getVoices();
+      const preferred = voices.find(
+        (v) =>
+          v.lang.replace("_", "-").toLowerCase() === lang.toLowerCase() &&
+          (v.name.includes("Natural") || v.name.includes("Online") || v.name.includes("Google") || v.name.includes("Gadis"))
+      ) || voices.find((v) => v.lang.startsWith(lang.slice(0, 2)));
+
+      if (preferred) {
+        utterance.voice = preferred;
       }
     } catch {}
 
@@ -70,8 +193,7 @@ class AudioService {
       this.processNextInQueue();
     };
 
-    utterance.onerror = (e) => {
-      // Don't crash on speech error
+    utterance.onerror = () => {
       this.isSpeaking = false;
       this.currentUtterance = null;
       if (onEnd) onEnd();
@@ -102,6 +224,14 @@ class AudioService {
   }
 
   stopSpeaking(): void {
+    if (this.currentAudioElement) {
+      try {
+        this.currentAudioElement.pause();
+        this.currentAudioElement.currentTime = 0;
+      } catch {}
+      this.currentAudioElement = null;
+    }
+
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       try {
         window.speechSynthesis.cancel();
@@ -113,6 +243,9 @@ class AudioService {
   }
 
   isCurrentlySpeaking(): boolean {
+    if (this.currentAudioElement && !this.currentAudioElement.paused) {
+      return true;
+    }
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       return window.speechSynthesis.speaking || this.isSpeaking;
     }
