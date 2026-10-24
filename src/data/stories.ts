@@ -459,7 +459,7 @@ export const ORIGINAL_STORIES: Story[] = [
       {
         pageNum: 1,
         text: "Adit dan Bimo berwisata ke Minangkabau di Sumatera Barat. Mereka melihat rumah megah dengan atap melengkung indah.",
-        illustration: "🏛️⛰️🐰👦🇮🇩",
+        illustration: "/illustrations/story-cul-01.svg",
         keywords: ["rumah gadang", "sumatera barat", "atap"],
       },
       {
