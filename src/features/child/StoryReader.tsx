@@ -116,8 +116,18 @@ export const StoryReader: React.FC<StoryReaderProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 bg-[#FBF9F1] rounded-[20px] sm:rounded-[24px] shadow-inner border border-amber-100/80 overflow-hidden min-h-[320px] sm:min-h-[420px]">
             {/* Left Page: Big Colorful Scene & Keywords */}
             <div className="p-4 sm:p-6 md:p-8 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-amber-200/50 bg-gradient-to-b from-[#FFFDF9] to-[#F5EED9]/40 relative">
-              <div className="text-5xl sm:text-7xl md:text-8xl my-auto animate-bounce py-3 sm:py-6 text-center drop-shadow-md">
-                {currentPage.illustration}
+              <div className="w-full flex-1 flex items-center justify-center py-2 sm:py-4 text-center">
+                {currentPage.illustration.startsWith("/") || currentPage.illustration.startsWith("http") || currentPage.illustration.startsWith("data:") ? (
+                  <img
+                    src={currentPage.illustration}
+                    alt={story.title}
+                    className="max-h-52 sm:max-h-64 w-auto object-contain rounded-2xl shadow-md border-2 border-amber-200 bg-white p-2"
+                  />
+                ) : (
+                  <div className="text-5xl sm:text-7xl md:text-8xl my-auto animate-bounce py-3 sm:py-6 text-center drop-shadow-md">
+                    {currentPage.illustration}
+                  </div>
+                )}
               </div>
 
               {/* Keyword Badges */}
