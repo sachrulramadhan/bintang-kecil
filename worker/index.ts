@@ -935,6 +935,63 @@ async function handleAppChild(request: Request, env: Env, childId: string): Prom
   return handleAppChildAttempts(request, env, user, childId);
 }
 
+interface CurriculumRow {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string;
+  contentJson: string | null;
+  skillsJson: string | null;
+  difficulty: string;
+  lessonId: string;
+  lessonTitle: string;
+  moduleId: string;
+  moduleTitle: string;
+}
+
+async function handleAppCurriculum(request: Request, env: Env): Promise<Response> {
+  await requireAppUser(request, env);
+  const category = (new URL(request.url).searchParams.get("category") || "").trim();
+  if (!(APP_CATEGORY_IDS as readonly string[]).includes(category)) {
+    throw new HttpError(400, "Kategori tidak dikenali.");
+  }
+  const rows = await env.CMS_DB.prepare(
+    `SELECT mat.id, mat.title, mat.slug, mat.summary, mat.content_json AS contentJson,
+            mat.skills_json AS skillsJson, mat.difficulty,
+            l.id AS lessonId, l.title AS lessonTitle, l.module_id AS moduleId, m.title AS moduleTitle
+       FROM materials mat
+       JOIN lessons l ON l.id = mat.lesson_id
+       JOIN modules m ON m.id = l.module_id
+      WHERE mat.status = 'published' AND m.status = 'published' AND m.category_id = ?
+      ORDER BY m.title, l.sort_order, mat.slug`,
+  )
+    .bind(category)
+    .all<CurriculumRow>();
+
+  const modules = new Map<string, { id: string; title: string; materials: unknown[] }>();
+  for (const row of rows.results) {
+    const entry = modules.get(row.moduleId) || {
+      id: row.moduleId,
+      title: row.moduleTitle,
+      materials: [],
+    };
+    entry.materials.push({
+      id: row.id,
+      title: row.title,
+      slug: row.slug,
+      summary: row.summary,
+      lessonId: row.lessonId,
+      lessonTitle: row.lessonTitle,
+      difficulty: row.difficulty,
+      skills: parseJsonArray(row.skillsJson),
+      content: parseJsonArray(row.contentJson),
+    });
+    modules.set(row.moduleId, entry);
+  }
+
+  return jsonResponse({ category, modules: [...modules.values()] });
+}
+
 async function handleSetup(request: Request, env: Env): Promise<Response> {
   assertSameOrigin(request);
   if (!env.CMS_SETUP_TOKEN || env.CMS_SETUP_TOKEN.length < 32) {
@@ -1607,6 +1664,9 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   }
   if (path === "/api/app/data" && request.method === "GET") {
     return handleAppData(request, env);
+  }
+  if (path === "/api/app/curriculum" && request.method === "GET") {
+    return handleAppCurriculum(request, env);
   }
   const appChildMatch = path.match(/^\/api\/app\/children\/([^/]+)(?:\/(progress|mastery|attempts))?$/);
   if (appChildMatch) {

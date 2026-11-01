@@ -16,6 +16,7 @@ import { audio } from "../../core/audio";
 import { storage } from "../../core/storage";
 import { evaluateAdaptiveStep, initialAdaptiveState } from "../../core/adaptive";
 import { BimoMascot } from "../../components/BimoMascot";
+import { ModuleMaterialsPanel } from "./ModuleMaterialsPanel";
 import confetti from "canvas-confetti";
 
 interface ModuleRunnerProps {
@@ -300,6 +301,9 @@ export const ModuleRunner: React.FC<ModuleRunnerProps> = ({
               <Volume2 className="w-5 h-5" />
               <span>Dengarkan Bimo</span>
             </button>
+            {module.category === "mathematics" && (
+              <ModuleMaterialsPanel moduleId={module.id} category={module.category} />
+            )}
           </div>
         )}
 
