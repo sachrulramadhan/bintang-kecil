@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { storage } from "./core/storage";
-import { ChildProfile, ParentAccount, CategoryId } from "./types";
+import { cloudSync } from "./core/cloudSync";
+import { AppUser, ChildProfile, ParentAccount, CategoryId } from "./types";
 import { StatusHeader } from "./components/StatusHeader";
 import { ChildSideNav, NavTab } from "./components/ChildSideNav";
 import { ParentGateModal } from "./components/ParentGateModal";
@@ -16,13 +17,14 @@ import { ChildProfileView } from "./features/child/ChildProfileView";
 import { ParentDashboard } from "./features/parent/ParentDashboard";
 import { SelectChildScreen } from "./features/auth/SelectChildScreen";
 import { ParentAuthScreen } from "./features/auth/ParentAuthScreen";
+import { FirstChildScreen } from "./features/auth/FirstChildScreen";
 
 export default function App() {
   const [parentAccount, setParentAccount] = useState<ParentAccount | null>(null);
   const [childrenList, setChildrenList] = useState<ChildProfile[]>([]);
   const [activeChildId, setActiveChildId] = useState<string | null>(null);
   const [currentMode, setCurrentMode] = useState<"child" | "parent" | "select-child">("child");
-  const [isLoggedOut, setIsLoggedOut] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [activeChildTab, setActiveChildTab] = useState<NavTab>("home");
   const [selectedCategoryFromHome, setSelectedCategoryFromHome] = useState<CategoryId | undefined>(undefined);
 
@@ -40,34 +42,85 @@ export default function App() {
     setIsRestBreakOpen(false);
   }, [activeChildId, currentMode]);
 
-  // Muat data tersimpan saat aplikasi dibuka.
-  // Otomatis siapkan data demo jika belum ada agar anak langsung masuk ke Beranda utama tanpa tertahan pendaftaran.
+  // Teruskan setiap perubahan data anak ke lapisan sinkronisasi D1.
   useEffect(() => {
-    sessionStorage.removeItem("bk:signed-out");
-    refreshAllData();
+    storage.setMutationListener((kind, childId) => cloudSync.markDirty(kind, childId));
+    return () => storage.setMutationListener(null);
   }, []);
 
-  const refreshAllData = () => {
-    let parent = storage.getParentAccount();
-    let children = storage.getChildren();
+  // Pulihkan sesi login orang tua dari cookie server (akun dibuat admin di web admin).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me", { credentials: "same-origin" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Belum masuk.");
+        const body: unknown = await response.json();
+        const user =
+          body && typeof body === "object" && "user" in body
+            ? (body as { user: AppUser }).user
+            : null;
+        if (!user) throw new Error("Sesi tidak valid.");
+        return user;
+      })
+      .then((user) => {
+        if (!cancelled) void finishLogin(user);
+      })
+      .catch(() => {
+        if (!cancelled) setIsAuthLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-    // Jika belum ada akun tersimpan di peramban, langsung seed data demo agar langsung tampil beranda anak
-    if (!parent || children.length === 0) {
-      storage.seedDemoData();
-      parent = storage.getParentAccount();
-      children = storage.getChildren();
-    }
+  // Simpan identitas login ke peramban lalu muat profil anak milik akun tersebut.
+  const finishLogin = async (user: AppUser) => {
+    const saved = storage.getParentAccount();
+    const sameAccount = Boolean(saved && saved.id === user.id);
+    const account: ParentAccount = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+      passwordHash: "",
+      pinHash: sameAccount && saved ? saved.pinHash : "",
+      createdAt: sameAccount && saved ? saved.createdAt : new Date().toISOString(),
+    };
+    storage.setParentAccount(account);
+    setParentAccount(account);
 
-    const activeId = storage.getActiveChildId();
+    // Ambil data terbaru dari server agar perangkat lain melihat progres yang sama.
+    await cloudSync.hydrate(account.id).catch(() => undefined);
 
-    setParentAccount(parent);
+    const children = storage.getChildren().filter((child) => child.parentId === account.id);
     setChildrenList(children);
-
-    if (activeId && children.some((c) => c.id === activeId)) {
+    const activeId = storage.getActiveChildId();
+    if (activeId && children.some((child) => child.id === activeId)) {
       setActiveChildId(activeId);
     } else if (children.length > 0) {
       setActiveChildId(children[0].id);
       storage.setActiveChildId(children[0].id);
+    } else {
+      setActiveChildId(null);
+    }
+    setCurrentMode("child");
+    setIsAuthLoading(false);
+  };
+
+  const refreshAllData = () => {
+    if (!parentAccount) return;
+    const children = storage.getChildren().filter(
+      (child) => child.parentId === parentAccount.id
+    );
+    setChildrenList(children);
+    const activeId = storage.getActiveChildId();
+    if (activeId && children.some((child) => child.id === activeId)) {
+      setActiveChildId(activeId);
+    } else if (children.length > 0) {
+      setActiveChildId(children[0].id);
+      storage.setActiveChildId(children[0].id);
+    } else {
+      setActiveChildId(null);
     }
   };
 
@@ -120,28 +173,31 @@ export default function App() {
     setCurrentMode("parent");
   };
 
-  const handleLogout = () => {
-    sessionStorage.setItem("bk:signed-out", "true");
-    setIsLoggedOut(true);
-    setCurrentMode("child");
-  };
-
-  const handleAuthSuccess = () => {
-    sessionStorage.removeItem("bk:signed-out");
-    setIsLoggedOut(false);
-    refreshAllData();
-    setCurrentMode("child");
-  };
-
-  // If no parent account created yet
-  if (!parentAccount || isLoggedOut) {
-    return (
-      <ParentAuthScreen
-        existingParent={parentAccount}
-        onAuthSuccess={handleAuthSuccess}
-        onResumeSavedData={handleAuthSuccess}
-      />
+  const handleLogout = async () => {
+    await cloudSync.flushNow().catch(() => undefined);
+    cloudSync.reset();
+    void fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).catch(
+      () => undefined
     );
+    setParentAccount(null);
+    setChildrenList([]);
+    setActiveChildId(null);
+    setCurrentMode("child");
+  };
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-child-pattern">
+        <p className="rounded-2xl bg-white/90 px-6 py-4 text-sm font-bold text-[#25476A] shadow-md">
+          Memuat sesi login...
+        </p>
+      </div>
+    );
+  }
+
+  // Pendaftaran hanya dari web admin; halaman utama hanya menerima username + kata sandi.
+  if (!parentAccount) {
+    return <ParentAuthScreen onAuthSuccess={finishLogin} />;
   }
 
   // Profile Selection Screen (Reference 1 Bottom Pattern)
@@ -185,6 +241,17 @@ export default function App() {
         onReturnToChildMode={() => setCurrentMode("child")}
         onLogout={handleLogout}
         onRefreshData={refreshAllData}
+      />
+    );
+  }
+
+  // Akun baru dari admin: orang tua menambahkan profil anak pertama.
+  if (childrenList.length === 0) {
+    return (
+      <FirstChildScreen
+        parent={parentAccount}
+        onDone={refreshAllData}
+        onLogout={handleLogout}
       />
     );
   }

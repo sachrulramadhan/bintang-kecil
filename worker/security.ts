@@ -1,7 +1,9 @@
 import type { D1Database, Env, AuthenticatedUser } from "./types";
 
 const SESSION_COOKIE = "bk_cms_session";
+const APP_SESSION_COOKIE = "bk_app_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
+const APP_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const PBKDF2_ITERATIONS = 100_000;
 
 export function jsonResponse(
@@ -226,6 +228,14 @@ export function expiredSessionCookie(): string {
   return `${SESSION_COOKIE}=; HttpOnly; Secure; SameSite=Strict; Path=/api/cms; Max-Age=0`;
 }
 
+export function appSessionCookie(token: string, maxAge: number): string {
+  return `${APP_SESSION_COOKIE}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
+}
+
+export function expiredAppSessionCookie(): string {
+  return `${APP_SESSION_COOKIE}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`;
+}
+
 function parseCookie(request: Request, key: string): string | null {
   const cookie = request.headers.get("Cookie");
   if (!cookie) return null;
@@ -265,6 +275,25 @@ export async function authenticate(
     .bind(user.role_id)
     .all<{ id: string }>();
   return { ...user, permissions: permissions.results.map((row) => row.id) };
+}
+
+export async function authenticateApp(
+  request: Request,
+  env: Env,
+): Promise<Omit<AuthenticatedUser, "permissions"> | null> {
+  const token = parseCookie(request, APP_SESSION_COOKIE);
+  if (!token) return null;
+  return env.CMS_DB.prepare(
+    `SELECT u.id, u.name, u.email, u.username, u.role_id, r.name AS role_name,
+            u.status, u.last_login, u.created_at
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       JOIN roles r ON r.id = u.role_id
+      WHERE s.token_hash = ? AND s.expires_at > datetime('now')
+        AND u.status = 'active' AND u.role_id = 'parent'`,
+  )
+    .bind(await sha256(token))
+    .first<Omit<AuthenticatedUser, "permissions">>();
 }
 
 export function requirePermission(
@@ -316,4 +345,4 @@ export async function writeAudit(
     .run();
 }
 
-export { SESSION_TTL_SECONDS };
+export { SESSION_TTL_SECONDS, APP_SESSION_TTL_SECONDS };

@@ -165,13 +165,6 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
     a.click();
   };
 
-  const handleSeedDemo = () => {
-    storage.seedDemoData();
-    onRefreshData();
-    setSaveSuccessMsg("Data demo contoh berhasil diisi!");
-    setTimeout(() => setSaveSuccessMsg(""), 3000);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col antialiased select-auto">
       {/* Top Banner: Distinct "MODE ORANG TUA" Indicator Bar */}
@@ -1058,31 +1051,16 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
             </div>
           )}
 
-          {/* TAB 9: SETTINGS & SEED DATA */}
+          {/* TAB 9: SETTINGS */}
           {activeTab === "settings" && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900">
-                  Pengaturan Akun & Data Demo
+                  Pengaturan Akun & Data
                 </h2>
                 <p className="text-sm text-slate-500">
-                  Kelola data akun orang tua dan isi data percontohan jika diperlukan.
+                  Kelola profil anak dan data belajar yang tersimpan di perangkat ini.
                 </p>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="font-bold text-sm text-slate-800">
-                  Data Percontohan (Demo Seed):
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Tombol ini akan mengisi profil contoh (Adit 5 th & Budi 8 th) dengan riwayat belajar dan penguasaan lengkap agar dashboard dapat langsung terlihat nyata.
-                </p>
-                <button
-                  onClick={handleSeedDemo}
-                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs shadow-sm transition-all"
-                >
-                  Isi Data Contoh (Demo Seed)
-                </button>
               </div>
 
               <div className="bg-white p-6 rounded-2xl border border-rose-200 shadow-xs space-y-4">

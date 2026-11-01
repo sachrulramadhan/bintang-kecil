@@ -765,6 +765,8 @@ function UserManagement({ currentUser }: { currentUser: AdminIdentity }) {
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [inviteUrl, setInviteUrl] = useState("");
+  const [accountCreated, setAccountCreated] = useState("");
+  const [selectedRoleId, setSelectedRoleId] = useState("");
   const [error, setError] = useState("");
   const can = (permission: string) => currentUser.permissions.includes(permission);
   const refresh = useCallback(async () => {
@@ -782,22 +784,32 @@ function UserManagement({ currentUser }: { currentUser: AdminIdentity }) {
   }, []);
   useEffect(() => { void refresh(); }, [refresh]);
   const filtered = users.filter((user) => `${user.name} ${user.email} ${user.username} ${user.roleName}`.toLowerCase().includes(query.toLowerCase()));
+  const availableRoles = roles.filter((role) => role.id !== "admin_master" || currentUser.roleId === "admin_master");
+  const selectedRole = selectedRoleId || availableRoles[0]?.id || "";
   const createAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const roleId = String(form.get("roleId") || "");
+    const username = String(form.get("username") || "");
     setError("");
     try {
-      const result = await api<{ invitationUrl: string }>("/users", {
+      const result = await api<{ id: string; status: string; invitationUrl?: string }>("/users", {
         method: "POST",
         body: JSON.stringify({
           name: form.get("name"),
           email: form.get("email"),
-          username: form.get("username"),
-          roleId: form.get("roleId"),
+          username,
+          roleId,
           notes: form.get("notes"),
+          ...(roleId === "parent" ? { password: form.get("password") } : {}),
         }),
       });
-      setInviteUrl(result.invitationUrl);
+      setInviteUrl(result.invitationUrl || "");
+      setAccountCreated(
+        result.invitationUrl
+          ? ""
+          : `Akun orang tua "${username}" sudah aktif. Sampaikan username dan kata sandi tersebut kepada orang tua untuk login di halaman utama.`,
+      );
       await refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Akun gagal dibuat.");
@@ -822,7 +834,7 @@ function UserManagement({ currentUser }: { currentUser: AdminIdentity }) {
   };
   return (
     <div className="space-y-5">
-      <PageHeading title="Manajemen akun" description="Buat undangan staff dan atur akses akun CMS. Kata sandi tidak dikirim lewat email." action={can("users.create") ? <button onClick={() => { setShowCreate(true); setInviteUrl(""); }} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"><Plus className="h-4 w-4" /> Tambah akun</button> : undefined} />
+      <PageHeading title="Manajemen akun" description="Daftarkan akun orang tua dan undang staff CMS. Akun orang tua dibuat di sini, bukan di halaman utama." action={can("users.create") ? <button onClick={() => { setShowCreate(true); setInviteUrl(""); setAccountCreated(""); setSelectedRoleId(""); }} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"><Plus className="h-4 w-4" /> Tambah akun</button> : undefined} />
       {error && <InlineError message={error} onClose={() => setError("")} />}
       <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:max-w-md">
         <Search className="h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama, email, username, role..." className="w-full text-sm outline-none" />
@@ -845,13 +857,14 @@ function UserManagement({ currentUser }: { currentUser: AdminIdentity }) {
           </tbody>
         </table>
       </div>
-      {showCreate && <Modal title="Undang pengguna CMS" onClose={() => setShowCreate(false)}>
-        {inviteUrl ? <div className="space-y-4"><p className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">Akun menunggu aktivasi. Salin tautan undangan ini dan kirim melalui kanal tepercaya. Tautan kedaluwarsa dalam 48 jam.</p><textarea readOnly value={inviteUrl} className="min-h-24 w-full rounded-xl border border-slate-300 p-3 text-sm" /><div className="flex justify-end gap-2"><button onClick={() => void navigator.clipboard.writeText(inviteUrl)} className="rounded-xl border px-4 py-2 text-sm font-bold hover:bg-slate-50">Salin tautan</button><button onClick={() => setShowCreate(false)} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white">Selesai</button></div></div> : <form onSubmit={(event) => void createAccount(event)} className="space-y-4">
+      {showCreate && <Modal title={selectedRole === "parent" ? "Tambah akun orang tua" : "Undang pengguna CMS"} onClose={() => setShowCreate(false)}>
+        {inviteUrl ? <div className="space-y-4"><p className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">Akun menunggu aktivasi. Salin tautan undangan ini dan kirim melalui kanal tepercaya. Tautan kedaluwarsa dalam 48 jam.</p><textarea readOnly value={inviteUrl} className="min-h-24 w-full rounded-xl border border-slate-300 p-3 text-sm" /><div className="flex justify-end gap-2"><button onClick={() => void navigator.clipboard.writeText(inviteUrl)} className="rounded-xl border px-4 py-2 text-sm font-bold hover:bg-slate-50">Salin tautan</button><button onClick={() => setShowCreate(false)} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white">Selesai</button></div></div> : accountCreated ? <div className="space-y-4"><p className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{accountCreated}</p><div className="flex justify-end"><button onClick={() => setShowCreate(false)} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white">Selesai</button></div></div> : <form onSubmit={(event) => void createAccount(event)} className="space-y-4">
           <ModalField name="name" label="Nama lengkap" required /><ModalField name="email" label="Email" type="email" required /><ModalField name="username" label="Username" required />
-          <label className="block"><span className="mb-1 block text-sm font-bold">Role</span><select name="roleId" className="w-full rounded-xl border border-slate-300 px-3 py-2.5" required>{roles.filter((role) => role.id !== "admin_master" || currentUser.roleId === "admin_master").map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
+          <label className="block"><span className="mb-1 block text-sm font-bold">Role</span><select name="roleId" value={selectedRole} onChange={(event) => setSelectedRoleId(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5" required>{availableRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
+          {selectedRole === "parent" && <ModalField name="password" label="Kata sandi awal (minimal 12 karakter)" type="password" required minLength={12} />}
           <ModalField name="notes" label="Catatan (opsional)" />
-          <p className="text-xs leading-5 text-slate-500">Pengguna membuat kata sandi sendiri melalui undangan sekali pakai. Jangan kirim kata sandi lewat email.</p>
-          <div className="flex justify-end gap-2"><button type="button" onClick={() => setShowCreate(false)} className="rounded-xl border px-4 py-2 text-sm font-bold">Batal</button><button className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white">Buat undangan</button></div>
+          <p className="text-xs leading-5 text-slate-500">{selectedRole === "parent" ? "Akun orang tua langsung aktif tanpa undangan. Sampaikan username dan kata sandi kepada orang tua untuk login di halaman utama." : "Pengguna membuat kata sandi sendiri melalui undangan sekali pakai. Jangan kirim kata sandi lewat email."}</p>
+          <div className="flex justify-end gap-2"><button type="button" onClick={() => setShowCreate(false)} className="rounded-xl border px-4 py-2 text-sm font-bold">Batal</button><button className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white">{selectedRole === "parent" ? "Buat akun orang tua" : "Buat undangan"}</button></div>
         </form>}
       </Modal>}
     </div>
@@ -1025,6 +1038,14 @@ function ResourcePage({ view, config, permissions, onError }: { view: AdminView;
       setError(cause instanceof Error ? cause.message : "Data gagal dihapus.");
     }
   };
+  const edit = async (row: Record<string, unknown>) => {
+    try {
+      const detail = await api<Record<string, unknown>>(`/${config.endpoint}/${encodeURIComponent(String(row.id))}`);
+      setEditing(detail);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Data gagal dimuat.");
+    }
+  };
   const filtered = rows.filter((row) => JSON.stringify(row).toLowerCase().includes(query.toLowerCase()));
   return (
     <div className="space-y-5">
@@ -1038,7 +1059,7 @@ function ResourcePage({ view, config, permissions, onError }: { view: AdminView;
             {filtered.map((row) => <tr key={String(row.id)} className="hover:bg-slate-50">
               {config.columns.map((column) => <td key={column.key} className="max-w-[360px] px-4 py-3">{column.key === "status" ? <StatusBadge status={String(row[column.key] || "")} /> : <span className="line-clamp-2">{displayValue(row, column.key)}</span>}</td>)}
               <td className="px-4 py-3"><div className="flex gap-1">
-                {canUpdate && <button onClick={() => setEditing(row)} aria-label={`Edit ${config.singular}`} className="rounded-lg p-2 text-sky-700 hover:bg-sky-50"><Pencil className="h-4 w-4" /></button>}
+                {canUpdate && <button onClick={() => void edit(row)} aria-label={`Edit ${config.singular}`} className="rounded-lg p-2 text-sky-700 hover:bg-sky-50"><Pencil className="h-4 w-4" /></button>}
                 {canDelete && <button onClick={() => void remove(row)} aria-label={`${config.archive ? "Arsipkan" : "Hapus"} ${config.singular}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button>}
                 {canPublish && row.status === "review" && <button onClick={() => void api(`/${config.endpoint}/${encodeURIComponent(String(row.id))}`, { method: "PATCH", body: JSON.stringify({ status: "published" }) }).then(refresh).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Publish gagal."))} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50" aria-label={`Terbitkan ${config.singular}`}><Check className="h-4 w-4" /></button>}
               </div></td>
@@ -1255,8 +1276,8 @@ function Modal({ title, children, onClose, wide = false }: { title: string; chil
   );
 }
 
-function ModalField({ name, label, type = "text", required = false, value, onChange, disabled = false }: { name?: string; label: string; type?: string; required?: boolean; value?: string; onChange?: (value: string) => void; disabled?: boolean }) {
-  return <label className="block"><span className="mb-1 block text-sm font-bold text-slate-700">{label}</span><input name={name} type={type} required={required} value={value} disabled={disabled} onChange={onChange ? (event) => onChange(event.target.value) : undefined} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-sky-500 disabled:bg-slate-100" /></label>;
+function ModalField({ name, label, type = "text", required = false, minLength, value, onChange, disabled = false }: { name?: string; label: string; type?: string; required?: boolean; minLength?: number; value?: string; onChange?: (value: string) => void; disabled?: boolean }) {
+  return <label className="block"><span className="mb-1 block text-sm font-bold text-slate-700">{label}</span><input name={name} type={type} required={required} minLength={minLength} value={value} disabled={disabled} onChange={onChange ? (event) => onChange(event.target.value) : undefined} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-sky-500 disabled:bg-slate-100" /></label>;
 }
 
 function formatDate(value: unknown): string {

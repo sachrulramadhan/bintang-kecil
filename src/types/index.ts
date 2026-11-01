@@ -36,6 +36,13 @@ export interface ParentAccount {
   createdAt: string;
 }
 
+export interface AppUser {
+  id: string;
+  name: string;
+  email: string;
+  username: string;
+}
+
 export interface ChildAudioSettings {
   volume: number;      // 0 - 100
   narration: boolean;  // TTS speech

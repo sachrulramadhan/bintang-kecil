@@ -1,6 +1,6 @@
 # Bintang Kecil - Belajar Bersama Bimo
 
-Aplikasi edukasi anak (usia 2-12 tahun) berbasis React + Vite + Tailwind. Seluruh data tersimpan di peramban (localStorage), sehingga tidak membutuhkan server atau API key.
+Aplikasi edukasi anak (usia 2-12 tahun) berbasis React + Vite + Tailwind. Akun orang tua/staff, profil anak, dan progres belajar disimpan di Cloudflare D1 dengan cache lokal (localStorage) di peramban. Karena itu halaman utama harus dijalankan lewat `npm run cms:dev` (bukan `npm run dev` saja) agar login dan sinkronisasi berfungsi.
 
 ## Menjalankan di komputer
 ```bash
@@ -19,7 +19,7 @@ Watcher akan memantau folder dan otomatis melakukan commit & push ke GitHub dala
 
 ## CMS Admin Master (Cloudflare Workers + D1)
 
-CMS admin diakses melalui `/admin`. Autentikasi staff dan konten CMS disimpan di D1, terpisah dari akun orang tua aplikasi belajar yang masih tersimpan di browser. Pustaka media saat ini menerima URL eksternal; belum ada upload file.
+CMS admin diakses melalui `/admin`. Autentikasi staff, akun orang tua, dan konten CMS disimpan di D1. Halaman utama hanya menampilkan login username + kata sandi; pendaftaran akun orang tua hanya dilakukan admin lewat CMS. Pustaka media saat ini menerima URL eksternal; belum ada upload file.
 
 ### Setup lokal
 Pastikan Wrangler sudah terautentikasi (`npx wrangler login`), lalu jalankan:
@@ -47,8 +47,17 @@ Konfigurasi ini memakai Cloudflare Worker Static Assets, bukan Cloudflare Pages.
    ```
 4. Buka `/admin` pada alamat Worker, masukkan `CMS_SETUP_TOKEN`, lalu buat akun Admin Master dengan kata sandi minimal 12 karakter. Setup hanya dapat dilakukan sekali; simpan kredensial admin dengan aman.
 5. Buat akun staff dari menu **Manajemen akun**. Tautan aktivasi berlaku 48 jam dan hanya dapat dipakai sekali.
+6. Untuk orang tua, buka **Manajemen akun** -> **Tambah akun**, pilih role **Orang Tua**, lalu isi username dan kata sandi awal (minimal 12 karakter). Akun langsung aktif dan dapat dipakai login di halaman utama. Setelah login pertama, orang tua membuat profil anaknya sendiri.
 
 Perubahan schema selanjutnya harus ditambahkan sebagai migration SQL bernomor baru di `migrations/`, lalu diterapkan menggunakan `npm run cms:migrate:remote` sebelum deploy kode yang memerlukannya.
+
+## Sinkronisasi data anak (D1)
+
+Profil anak, progres modul, attempt, dan mastery disinkronkan ke tabel D1 pada migration `0002_child_data.sql`:
+- Saat login (atau sesi dipulihkan), aplikasi memuat data anak milik akun dari `/api/app/data` dan menyimpannya sebagai cache lokal.
+- Setiap perubahan lokal (profil, progres, attempt, mastery, hapus anak) dikirim otomatis ke server setelah jeda singkat, saat logout, dan saat halaman ditutup.
+- Perangkat lain melihat data terbaru ketika login/refresh. Tidak ada pembaruan real-time antarperangkat, dan data lokal yang belum sempat terkirim bisa tertimpa oleh data server saat login berikutnya.
+- Data anak selalu dibatasi pada akun orang tua yang sedang login; endpoint `/api/app/*` menolak akses tanpa sesi atau ke anak milik akun lain.
 
 ## Deploy ke Cloudflare
 
@@ -76,8 +85,7 @@ Catatan: `public/_headers` mengatur header keamanan dan cache. Aplikasi tidak me
 Ilustrasi ada di `public/bimo/` (WebP transparan): `face-*.webp` (10 ekspresi) dan `body-*.webp` (depan, tiga perempat, samping, belakang). Komponen `src/components/BimoMascot.tsx` memetakan ekspresi ke file. Untuk menambah ekspresi, tambahkan file baru lalu daftarkan di `FACE_FILE`.
 
 ## Penting sebelum rilis publik
-- Akun dan PIN orang tua saat ini disimpan di peramban (hash SHA-256 + salt statis). Ini cukup untuk satu perangkat, **bukan** autentikasi sungguhan. Untuk sinkron antarperangkat, tambahkan backend (mis. Cloudflare D1/Workers) dengan autentikasi server.
-- Tombol logout kembali ke halaman pendaftaran tanpa menghapus data lokal. Gunakan PIN orang tua untuk melanjutkan kembali ke profil yang tersimpan.
-- Dari halaman logout, pilih "Daftar akun orang tua baru" untuk membuat akun lain di perangkat yang sama. Akun lama dan progresnya tetap tersimpan; gunakan email dan PIN akun tersebut untuk membukanya kembali.
+- Login orang tua diverifikasi server memakai akun D1 dan cookie sesi HttpOnly. Profil anak dan progres belajar kini tersinkron lewat D1, sedangkan PIN gerbang orang tua dan pengaturan suara ElevenLabs masih tersimpan di perangkat masing-masing.
+- Tombol logout mengakhiri sesi server dan kembali ke halaman login. Tidak ada pendaftaran di halaman utama; akun baru harus dibuat admin lewat `/admin`.
 - Suara memakai Web Speech API bawaan peramban; kualitas berbeda tiap perangkat. Untuk suara natural, ganti dengan file MP3 (lihat `src/core/audio.ts`).
 - Data Misi Harian di beranda masih contoh statis.

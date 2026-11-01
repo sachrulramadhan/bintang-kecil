@@ -11,6 +11,14 @@ import { ALL_BADGES } from "../data/badges";
 
 const PREFIX = "bk:v1:";
 
+export type StorageMutationKind =
+  | "profile"
+  | "progress"
+  | "attempts"
+  | "mastery"
+  | "deleted";
+export type StorageMutationListener = (kind: StorageMutationKind, childId: string) => void;
+
 export async function hashString(str: string): Promise<string> {
   try {
     const encoder = new TextEncoder();
@@ -30,6 +38,16 @@ export async function hashString(str: string): Promise<string> {
 }
 
 class StorageRepository {
+  private mutationListener: StorageMutationListener | null = null;
+
+  setMutationListener(listener: StorageMutationListener | null): void {
+    this.mutationListener = listener;
+  }
+
+  private notify(kind: StorageMutationKind, childId: string): void {
+    this.mutationListener?.(kind, childId);
+  }
+
   private getItem<T>(key: string, defaultValue: T): T {
     try {
       const raw = localStorage.getItem(PREFIX + key);
@@ -73,6 +91,15 @@ class StorageRepository {
       accounts.push(account);
     }
     this.setItem("parent_accounts", accounts);
+  }
+
+  // Penanda bahwa server pernah menjadi sumber data untuk akun ini.
+  isCloudHydrated(parentId: string): boolean {
+    return this.getItem<boolean>(`cloud_ready_${parentId}`, false);
+  }
+
+  markCloudHydrated(parentId: string): void {
+    this.setItem(`cloud_ready_${parentId}`, true);
   }
 
   // Active Child ID
@@ -135,6 +162,13 @@ class StorageRepository {
       children.push(child);
     }
     this.setItem("children", children);
+    this.notify("profile", child.id);
+  }
+
+  // Dipakai saat hidrasi dari server: ganti seluruh profil anak milik satu akun.
+  replaceChildrenForParent(parentId: string, children: ChildProfile[]): void {
+    const others = this.getChildren().filter((child) => child.parentId !== parentId);
+    this.setItem("children", [...others, ...children]);
   }
 
   deleteChild(childId: string): void {
@@ -149,6 +183,7 @@ class StorageRepository {
     if (this.getActiveChildId() === childId) {
       this.setActiveChildId(children.length > 0 ? children[0].id : null);
     }
+    this.notify("deleted", childId);
   }
 
   // Module Progress (keyed strictly by childId)
@@ -160,7 +195,12 @@ class StorageRepository {
     const all = this.getModuleProgress(childId);
     all[progress.moduleId] = progress;
     this.setItem(`progress_${childId}`, all);
+    this.notify("progress", childId);
     this.checkAndAwardBadges(childId);
+  }
+
+  replaceModuleProgress(childId: string, progress: Record<string, ModuleProgress>): void {
+    this.setItem(`progress_${childId}`, progress);
   }
 
   // Attempts (isolated per childId)
@@ -174,8 +214,13 @@ class StorageRepository {
     // Keep last 300 attempts
     if (attempts.length > 300) attempts.length = 300;
     this.setItem(`attempts_${childId}`, attempts);
+    this.notify("attempts", childId);
     this.updateMasteryFromAttempt(childId, attempt);
     this.checkAndAwardBadges(childId);
+  }
+
+  replaceAttempts(childId: string, attempts: Attempt[]): void {
+    this.setItem(`attempts_${childId}`, attempts.slice(0, 300));
   }
 
   // Skill Mastery (isolated per childId)
@@ -225,6 +270,11 @@ class StorageRepository {
     existing.masteryScore = weightSum > 0 ? Math.round(scoreSum / weightSum) : 0;
     map[attempt.skillId] = existing;
     this.setItem(`mastery_${childId}`, map);
+    this.notify("mastery", childId);
+  }
+
+  replaceMastery(childId: string, mastery: Record<string, SkillMastery>): void {
+    this.setItem(`mastery_${childId}`, mastery);
   }
 
   // Rewards & Stars

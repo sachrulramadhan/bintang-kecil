@@ -4,11 +4,15 @@ import type {
   Env,
 } from "./types";
 import {
+  APP_SESSION_TTL_SECONDS,
+  appSessionCookie,
   assertSameOrigin,
   authenticate,
+  authenticateApp,
   createId,
   emailField,
   enumField,
+  expiredAppSessionCookie,
   expiredSessionCookie,
   hashPassword,
   HttpError,
@@ -34,6 +38,7 @@ interface ResourceDefinition {
   permission: string;
   searchColumns: string[];
   select: string;
+  listSelect?: string;
   fields: Record<
     string,
     (body: Record<string, unknown>, user: AuthenticatedUser, creating: boolean) => D1Value
@@ -95,6 +100,8 @@ const RESOURCES: Record<string, ResourceDefinition> = {
     searchColumns: ["title"],
     select:
       "id, module_id AS moduleId, title, content_json AS contentJson, sort_order AS sortOrder, duration_minutes AS durationMinutes, status, created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt, updated_at AS updatedAt",
+    listSelect:
+      "id, module_id AS moduleId, title, sort_order AS sortOrder, duration_minutes AS durationMinutes, status, created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt, updated_at AS updatedAt",
     fields: {
       moduleId: (body) => requiredString(body, "moduleId", 100),
       title: (body) => requiredString(body, "title", 180),
@@ -273,7 +280,8 @@ async function handleLogin(request: Request, env: Env): Promise<Response> {
   const row = await env.CMS_DB.prepare(
     `SELECT id, password_hash AS passwordHash, status
        FROM users
-      WHERE email = ? COLLATE NOCASE OR username = ? COLLATE NOCASE
+      WHERE (email = ? COLLATE NOCASE OR username = ? COLLATE NOCASE)
+        AND role_id <> 'parent'
       LIMIT 1`,
   )
     .bind(login, login)
@@ -304,6 +312,627 @@ async function handleLogin(request: Request, env: Env): Promise<Response> {
     200,
     { "Set-Cookie": sessionCookie(token, SESSION_TTL_SECONDS) },
   );
+}
+
+function appUserPayload(user: {
+  id: string;
+  name: string;
+  email: string;
+  username: string;
+}) {
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+    },
+  };
+}
+
+async function handleAppLogin(request: Request, env: Env): Promise<Response> {
+  assertSameOrigin(request);
+  const body = await readJson(request);
+  const login = normalizeLogin(requiredString(body, "username", 254));
+  const password = requiredString(body, "password", 256);
+  const address = request.headers.get("CF-Connecting-IP") || "unknown";
+  const keys = [`app:${login}`, `app-ip:${address}`];
+  const placeholders = keys.map(() => "?").join(", ");
+  const attempts = await env.CMS_DB.prepare(
+    `SELECT COUNT(*) AS count FROM login_attempts
+      WHERE login_key IN (${placeholders}) AND attempted_at > datetime('now', '-15 minutes')`,
+  )
+    .bind(...keys)
+    .first<{ count: number }>();
+  if ((attempts?.count || 0) >= 10) {
+    throw new HttpError(429, "Terlalu banyak percobaan login. Coba lagi setelah 15 menit.");
+  }
+
+  const row = await env.CMS_DB.prepare(
+    `SELECT id, name, email, username, password_hash AS passwordHash, status
+       FROM users
+      WHERE username = ? COLLATE NOCASE AND role_id = 'parent'
+      LIMIT 1`,
+  )
+    .bind(login)
+    .first<{
+      id: string;
+      name: string;
+      email: string;
+      username: string;
+      passwordHash: string | null;
+      status: string;
+    }>();
+  const valid =
+    Boolean(row?.passwordHash) &&
+    row?.status === "active" &&
+    (await verifyPassword(password, row?.passwordHash || ""));
+  if (!row || !valid) {
+    await recordLoginFailure(env, keys);
+    throw new HttpError(401, "Username atau kata sandi tidak cocok.");
+  }
+
+  await clearLoginFailures(env, keys);
+  const token = randomToken();
+  const expiresAt = new Date(Date.now() + APP_SESSION_TTL_SECONDS * 1000).toISOString();
+  await env.CMS_DB.prepare(
+    "INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)",
+  )
+    .bind(createId("session"), row.id, await sha256(token), expiresAt)
+    .run();
+  await env.CMS_DB.prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?")
+    .bind(row.id)
+    .run();
+
+  return jsonResponse(appUserPayload(row), 200, {
+    "Set-Cookie": appSessionCookie(token, APP_SESSION_TTL_SECONDS),
+  });
+}
+
+async function handleAppMe(request: Request, env: Env): Promise<Response> {
+  const user = await authenticateApp(request, env);
+  if (!user) throw new HttpError(401, "Sesi login sudah berakhir. Silakan masuk kembali.");
+  return jsonResponse(appUserPayload(user));
+}
+
+async function handleAppLogout(request: Request, env: Env): Promise<Response> {
+  assertSameOrigin(request);
+  const cookie = request.headers.get("Cookie") || "";
+  const token = cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("bk_app_session="))
+    ?.slice("bk_app_session=".length);
+  if (token) {
+    await env.CMS_DB.prepare("DELETE FROM sessions WHERE token_hash = ?")
+      .bind(await sha256(decodeURIComponent(token)))
+      .run();
+  }
+  return jsonResponse({ ok: true }, 200, { "Set-Cookie": expiredAppSessionCookie() });
+}
+
+const APP_CATEGORY_IDS = [
+  "stories",
+  "mathematics",
+  "science",
+  "social",
+  "arabic",
+  "mandarin",
+  "indonesian",
+  "english",
+  "coding",
+] as const;
+const MODULE_STATUSES = ["locked", "open", "in-progress", "done"] as const;
+
+async function requireAppUser(
+  request: Request,
+  env: Env,
+): Promise<Omit<AuthenticatedUser, "permissions">> {
+  const user = await authenticateApp(request, env);
+  if (!user) throw new HttpError(401, "Silakan login untuk melanjutkan.");
+  return user;
+}
+
+function parseJsonArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseJsonObject(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value !== "string") return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function boundedInteger(value: unknown, fallback: number, minimum: number, maximum: number): number {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(maximum, Math.max(minimum, Math.round(number)));
+}
+
+function stringArrayField(
+  body: Record<string, unknown>,
+  field: string,
+  maxItems = 200,
+  maxLength = 100,
+): string[] {
+  const value = body[field];
+  if (value === undefined || value === null) return [];
+  if (
+    !Array.isArray(value) ||
+    value.length > maxItems ||
+    value.some((item) => typeof item !== "string" || item.length > maxLength)
+  ) {
+    throw new HttpError(400, `${field} tidak valid.`);
+  }
+  return value as string[];
+}
+
+function shortDateField(body: Record<string, unknown>, field: string, fallback = ""): string {
+  const value = typeof body[field] === "string" ? String(body[field]).slice(0, 10) : fallback;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new HttpError(400, `${field} harus berupa tanggal yang valid.`);
+  }
+  return value;
+}
+
+function timestampField(value: unknown): string {
+  if (typeof value !== "string" || !value) return new Date().toISOString();
+  return value.slice(0, 40);
+}
+
+async function assertOwnedChild(env: Env, parentId: string, childId: string): Promise<void> {
+  const row = await env.CMS_DB.prepare(
+    "SELECT id FROM children WHERE id = ? AND parent_id = ?",
+  )
+    .bind(childId, parentId)
+    .first<{ id: string }>();
+  if (!row) throw new HttpError(404, "Profil anak tidak ditemukan.");
+}
+
+async function handleAppData(request: Request, env: Env): Promise<Response> {
+  const user = await requireAppUser(request, env);
+  const children = await env.CMS_DB.prepare(
+    `SELECT id, parent_id AS parentId, nickname, birth_date AS birthDate, age, avatar,
+            level_override AS levelOverride, enabled_categories_json AS enabledCategoriesJson,
+            languages_json AS languagesJson, daily_limit_min AS dailyLimitMin,
+            difficulty_mode AS difficultyMode, manual_difficulty AS manualDifficulty,
+            audio_json AS audioJson, stars, coins, donuts, badges_json AS badgesJson,
+            owned_items_json AS ownedItemsJson, equipped_hat AS equippedHat,
+            equipped_glasses AS equippedGlasses, world_state_json AS worldStateJson,
+            streak, last_active_date AS lastActiveDate,
+            today_seconds_played AS todaySecondsPlayed
+       FROM children WHERE parent_id = ? ORDER BY created_at`,
+  )
+    .bind(user.id)
+    .all<Record<string, unknown>>();
+
+  const ids = children.results.map((child) => String(child.id));
+  const progressByChild: Record<string, Record<string, unknown>> = {};
+  const attemptsByChild: Record<string, Record<string, unknown>[]> = {};
+  const masteryByChild: Record<string, Record<string, unknown>> = {};
+
+  if (ids.length > 0) {
+    const placeholders = ids.map(() => "?").join(", ");
+    const [progressRows, attemptRows, masteryRows] = await Promise.all([
+      env.CMS_DB.prepare(
+        `SELECT child_id AS childId, module_id AS moduleId, status, stars,
+                last_step AS lastStep, completed_at AS completedAt
+           FROM child_module_progress WHERE child_id IN (${placeholders})`,
+      )
+        .bind(...ids)
+        .all<Record<string, unknown>>(),
+      env.CMS_DB.prepare(
+        `SELECT id, child_id AS childId, module_id AS moduleId, game_id AS gameId,
+                item_id AS itemId, skill_id AS skillId, category, correct, used_hint AS usedHint,
+                duration_ms AS durationMs, difficulty, attempted_at AS attemptedAt
+           FROM child_attempts WHERE child_id IN (${placeholders})
+          ORDER BY attempted_at DESC LIMIT 3000`,
+      )
+        .bind(...ids)
+        .all<Record<string, unknown>>(),
+      env.CMS_DB.prepare(
+        `SELECT child_id AS childId, skill_id AS skillId, category, attempts, correct,
+                hints_used AS hintsUsed, last_practiced_at AS lastPracticedAt,
+                mastery_score AS masteryScore, history_json AS historyJson
+           FROM child_mastery WHERE child_id IN (${placeholders})`,
+      )
+        .bind(...ids)
+        .all<Record<string, unknown>>(),
+    ]);
+
+    for (const row of progressRows.results) {
+      const childId = String(row.childId);
+      (progressByChild[childId] ||= {})[String(row.moduleId)] = {
+        childId,
+        moduleId: row.moduleId,
+        status: row.status,
+        stars: row.stars,
+        lastStep: row.lastStep,
+        ...(row.completedAt ? { completedAt: row.completedAt } : {}),
+      };
+    }
+    for (const row of attemptRows.results) {
+      const childId = String(row.childId);
+      (attemptsByChild[childId] ||= []).push({
+        id: row.id,
+        childId,
+        ...(row.moduleId ? { moduleId: row.moduleId } : {}),
+        gameId: row.gameId,
+        ...(row.itemId ? { itemId: row.itemId } : {}),
+        skillId: row.skillId,
+        category: row.category,
+        correct: Number(row.correct) === 1,
+        usedHint: Number(row.usedHint) === 1,
+        durationMs: row.durationMs,
+        difficulty: row.difficulty,
+        at: row.attemptedAt,
+      });
+    }
+    for (const row of masteryRows.results) {
+      const childId = String(row.childId);
+      (masteryByChild[childId] ||= {})[String(row.skillId)] = {
+        childId,
+        skillId: row.skillId,
+        category: row.category,
+        attempts: row.attempts,
+        correct: row.correct,
+        hintsUsed: row.hintsUsed,
+        lastPracticedAt: row.lastPracticedAt,
+        masteryScore: row.masteryScore,
+        history: parseJsonArray(row.historyJson),
+      };
+    }
+  }
+
+  return jsonResponse({
+    children: children.results.map((row) => {
+      const id = String(row.id);
+      return {
+        id,
+        parentId: row.parentId,
+        nickname: row.nickname,
+        birthDate: row.birthDate,
+        age: row.age,
+        avatar: row.avatar,
+        ...(row.levelOverride ? { levelOverride: row.levelOverride } : {}),
+        enabledCategories: parseJsonArray(row.enabledCategoriesJson),
+        languages: parseJsonArray(row.languagesJson),
+        dailyLimitMin: row.dailyLimitMin,
+        difficultyMode: row.difficultyMode,
+        ...(row.manualDifficulty ? { manualDifficulty: row.manualDifficulty } : {}),
+        audio: parseJsonObject(row.audioJson),
+        stars: row.stars,
+        coins: row.coins,
+        donuts: row.donuts,
+        badges: parseJsonArray(row.badgesJson),
+        ownedItems: parseJsonArray(row.ownedItemsJson),
+        ...(row.equippedHat ? { equippedHat: row.equippedHat } : {}),
+        ...(row.equippedGlasses ? { equippedGlasses: row.equippedGlasses } : {}),
+        worldState: parseJsonObject(row.worldStateJson),
+        streak: row.streak,
+        lastActiveDate: row.lastActiveDate,
+        todaySecondsPlayed: row.todaySecondsPlayed,
+        progress: progressByChild[id] || {},
+        attempts: attemptsByChild[id] || [],
+        mastery: masteryByChild[id] || {},
+      };
+    }),
+  });
+}
+
+async function handleAppChildProfile(
+  request: Request,
+  env: Env,
+  user: Omit<AuthenticatedUser, "permissions">,
+  childId: string,
+): Promise<Response> {
+  const body = await readJson(request);
+  const nickname = requiredString(body, "nickname", 60);
+  const birthDate = shortDateField(body, "birthDate");
+  const age = integerField(body, "age", 5, 0, 18);
+  const avatar = optionalString(body, "avatar", 16) || "🐰";
+  const levelOverride = optionalString(body, "levelOverride", 8) || null;
+  const categories = stringArrayField(body, "enabledCategories", 20, 40).filter((category) =>
+    (APP_CATEGORY_IDS as readonly string[]).includes(category),
+  );
+  const languages = stringArrayField(body, "languages", 20, 20);
+  const dailyLimitMin = integerField(body, "dailyLimitMin", 30, 0, 1440);
+  const difficultyMode = enumField(body, "difficultyMode", ["auto", "manual"] as const, "auto");
+  const manualDifficulty = optionalString(body, "manualDifficulty", 20) || null;
+  if (
+    manualDifficulty &&
+    !(["beginner", "developing", "advanced"] as readonly string[]).includes(manualDifficulty)
+  ) {
+    throw new HttpError(400, "manualDifficulty tidak valid.");
+  }
+
+  const audio = parseJsonObject(body.audio);
+  const audioJson = JSON.stringify({
+    volume: boundedInteger(audio.volume, 80, 0, 100),
+    narration: audio.narration !== false,
+    music: audio.music !== false,
+    sfx: audio.sfx !== false,
+  });
+
+  const worldState = parseJsonObject(body.worldState);
+  const unlockedAreas = Array.isArray(worldState.unlockedAreas)
+    ? worldState.unlockedAreas
+        .filter((area): area is string => typeof area === "string")
+        .slice(0, 50)
+        .map((area) => area.slice(0, 40))
+    : [];
+  const decorations: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(parseJsonObject(worldState.decorations))) {
+    if (Object.keys(decorations).length >= 50) break;
+    if (!Array.isArray(value)) continue;
+    decorations[key.slice(0, 40)] = value
+      .filter((item): item is string => typeof item === "string")
+      .slice(0, 50)
+      .map((item) => item.slice(0, 80));
+  }
+  const worldStateJson = JSON.stringify({ unlockedAreas, decorations });
+
+  const stars = integerField(body, "stars", 0, 0, 10_000_000);
+  const coins = integerField(body, "coins", 0, 0, 10_000_000);
+  const donuts = integerField(body, "donuts", 0, 0, 1_000_000);
+  const badges = stringArrayField(body, "badges", 200, 80);
+  const ownedItems = stringArrayField(body, "ownedItems", 500, 100);
+  const equippedHat = optionalString(body, "equippedHat", 100) || null;
+  const equippedGlasses = optionalString(body, "equippedGlasses", 100) || null;
+  const streak = integerField(body, "streak", 0, 0, 100_000);
+  const lastActiveDate =
+    typeof body.lastActiveDate === "string" && body.lastActiveDate
+      ? shortDateField(body, "lastActiveDate")
+      : new Date().toISOString().slice(0, 10);
+  const todaySecondsPlayed = integerField(body, "todaySecondsPlayed", 0, 0, 172_800);
+
+  const values: D1Value[] = [
+    nickname,
+    birthDate,
+    age,
+    avatar,
+    levelOverride,
+    JSON.stringify(categories),
+    JSON.stringify(languages),
+    dailyLimitMin,
+    difficultyMode,
+    manualDifficulty,
+    audioJson,
+    stars,
+    coins,
+    donuts,
+    JSON.stringify(badges),
+    JSON.stringify(ownedItems),
+    equippedHat,
+    equippedGlasses,
+    worldStateJson,
+    streak,
+    lastActiveDate,
+    todaySecondsPlayed,
+  ];
+
+  const existing = await env.CMS_DB.prepare("SELECT parent_id AS parentId FROM children WHERE id = ?")
+    .bind(childId)
+    .first<{ parentId: string }>();
+  if (existing) {
+    if (existing.parentId !== user.id) {
+      throw new HttpError(403, "Profil anak bukan milik akun ini.");
+    }
+    await env.CMS_DB.prepare(
+      `UPDATE children SET nickname = ?, birth_date = ?, age = ?, avatar = ?, level_override = ?,
+              enabled_categories_json = ?, languages_json = ?, daily_limit_min = ?,
+              difficulty_mode = ?, manual_difficulty = ?, audio_json = ?, stars = ?, coins = ?,
+              donuts = ?, badges_json = ?, owned_items_json = ?, equipped_hat = ?,
+              equipped_glasses = ?, world_state_json = ?, streak = ?, last_active_date = ?,
+              today_seconds_played = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND parent_id = ?`,
+    )
+      .bind(...values, childId, user.id)
+      .run();
+    return jsonResponse({ ok: true });
+  }
+
+  await env.CMS_DB.prepare(
+    `INSERT INTO children
+       (id, parent_id, nickname, birth_date, age, avatar, level_override,
+        enabled_categories_json, languages_json, daily_limit_min, difficulty_mode,
+        manual_difficulty, audio_json, stars, coins, donuts, badges_json,
+        owned_items_json, equipped_hat, equipped_glasses, world_state_json,
+        streak, last_active_date, today_seconds_played)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(childId, user.id, ...values)
+    .run();
+  return jsonResponse({ ok: true }, 201);
+}
+
+async function handleAppChildProgress(
+  request: Request,
+  env: Env,
+  user: Omit<AuthenticatedUser, "permissions">,
+  childId: string,
+): Promise<Response> {
+  const body = await readJson(request);
+  const progress = parseJsonObject(body.progress);
+  await assertOwnedChild(env, user.id, childId);
+  await env.CMS_DB.prepare("DELETE FROM child_module_progress WHERE child_id = ?")
+    .bind(childId)
+    .run();
+  for (const [moduleId, raw] of Object.entries(progress).slice(0, 500)) {
+    if (!/^[A-Za-z0-9._-]{1,120}$/.test(moduleId)) continue;
+    const item = parseJsonObject(raw);
+    const status = (MODULE_STATUSES as readonly string[]).includes(String(item.status))
+      ? String(item.status)
+      : "open";
+    await env.CMS_DB.prepare(
+      `INSERT OR REPLACE INTO child_module_progress
+         (child_id, module_id, status, stars, last_step, completed_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        childId,
+        moduleId,
+        status,
+        boundedInteger(item.stars, 0, 0, 3),
+        boundedInteger(item.lastStep, 0, 0, 1000),
+        typeof item.completedAt === "string" && item.completedAt
+          ? item.completedAt.slice(0, 40)
+          : null,
+      )
+      .run();
+  }
+  return jsonResponse({ ok: true });
+}
+
+async function handleAppChildMastery(
+  request: Request,
+  env: Env,
+  user: Omit<AuthenticatedUser, "permissions">,
+  childId: string,
+): Promise<Response> {
+  const body = await readJson(request);
+  const mastery = parseJsonObject(body.mastery);
+  await assertOwnedChild(env, user.id, childId);
+  await env.CMS_DB.prepare("DELETE FROM child_mastery WHERE child_id = ?").bind(childId).run();
+  for (const [skillId, raw] of Object.entries(mastery).slice(0, 300)) {
+    if (!/^[A-Za-z0-9._-]{1,120}$/.test(skillId)) continue;
+    const item = parseJsonObject(raw);
+    const history = (Array.isArray(item.history) ? item.history : [])
+      .slice(0, 50)
+      .map((entry) => {
+        const record = parseJsonObject(entry);
+        return {
+          t: timestampField(record.t),
+          correct: record.correct === true,
+          difficulty: boundedInteger(record.difficulty, 1, 1, 10),
+          usedHint: record.usedHint === true,
+        };
+      });
+    await env.CMS_DB.prepare(
+      `INSERT OR REPLACE INTO child_mastery
+         (child_id, skill_id, category, attempts, correct, hints_used,
+          last_practiced_at, mastery_score, history_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        childId,
+        skillId,
+        typeof item.category === "string" ? item.category.slice(0, 40) : "stories",
+        boundedInteger(item.attempts, 0, 0, 1_000_000),
+        boundedInteger(item.correct, 0, 0, 1_000_000),
+        boundedInteger(item.hintsUsed, 0, 0, 1_000_000),
+        timestampField(item.lastPracticedAt),
+        boundedInteger(item.masteryScore, 0, 0, 100),
+        JSON.stringify(history),
+      )
+      .run();
+  }
+  return jsonResponse({ ok: true });
+}
+
+async function handleAppChildAttempts(
+  request: Request,
+  env: Env,
+  user: Omit<AuthenticatedUser, "permissions">,
+  childId: string,
+): Promise<Response> {
+  const body = await readJson(request);
+  const attempts = Array.isArray(body.attempts) ? body.attempts.slice(0, 500) : [];
+  await assertOwnedChild(env, user.id, childId);
+  for (const raw of attempts) {
+    const item = parseJsonObject(raw);
+    if (typeof item.id !== "string" || !/^[A-Za-z0-9._-]{1,100}$/.test(item.id)) continue;
+    const gameId = typeof item.gameId === "string" ? item.gameId.slice(0, 100) : "";
+    const skillId = typeof item.skillId === "string" ? item.skillId.slice(0, 100) : "";
+    const category = typeof item.category === "string" ? item.category.slice(0, 40) : "";
+    if (!gameId || !skillId || !category) continue;
+    await env.CMS_DB.prepare(
+      `INSERT OR IGNORE INTO child_attempts
+         (id, child_id, module_id, game_id, item_id, skill_id, category, correct,
+          used_hint, duration_ms, difficulty, attempted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        item.id,
+        childId,
+        typeof item.moduleId === "string" && item.moduleId ? item.moduleId.slice(0, 120) : null,
+        gameId,
+        typeof item.itemId === "string" && item.itemId ? item.itemId.slice(0, 120) : null,
+        skillId,
+        category,
+        item.correct === true ? 1 : 0,
+        item.usedHint === true ? 1 : 0,
+        boundedInteger(item.durationMs, 0, 0, 3_600_000),
+        boundedInteger(item.difficulty, 1, 1, 10),
+        timestampField(item.at),
+      )
+      .run();
+  }
+  return jsonResponse({ ok: true });
+}
+
+async function handleAppChild(request: Request, env: Env, childId: string): Promise<Response> {
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(childId)) {
+    throw new HttpError(400, "ID profil anak tidak valid.");
+  }
+  const user = await requireAppUser(request, env);
+  const path = new URL(request.url).pathname;
+  const part = path.endsWith("/progress")
+    ? "progress"
+    : path.endsWith("/mastery")
+      ? "mastery"
+      : path.endsWith("/attempts")
+        ? "attempts"
+        : "profile";
+
+  if (part === "profile") {
+    if (request.method === "PUT") {
+      assertSameOrigin(request);
+      return handleAppChildProfile(request, env, user, childId);
+    }
+    if (request.method === "DELETE") {
+      assertSameOrigin(request);
+      await assertOwnedChild(env, user.id, childId);
+      await env.CMS_DB.prepare("DELETE FROM child_attempts WHERE child_id = ?")
+        .bind(childId)
+        .run();
+      await env.CMS_DB.prepare("DELETE FROM child_mastery WHERE child_id = ?")
+        .bind(childId)
+        .run();
+      await env.CMS_DB.prepare("DELETE FROM child_module_progress WHERE child_id = ?")
+        .bind(childId)
+        .run();
+      await env.CMS_DB.prepare("DELETE FROM children WHERE id = ? AND parent_id = ?")
+        .bind(childId, user.id)
+        .run();
+      return jsonResponse({ ok: true });
+    }
+    throw new HttpError(405, "Metode tidak didukung.");
+  }
+
+  if (request.method !== "PUT" && !(part === "attempts" && request.method === "POST")) {
+    throw new HttpError(405, "Metode tidak didukung.");
+  }
+  assertSameOrigin(request);
+  if (part === "progress") return handleAppChildProgress(request, env, user, childId);
+  if (part === "mastery") return handleAppChildMastery(request, env, user, childId);
+  return handleAppChildAttempts(request, env, user, childId);
 }
 
 async function handleSetup(request: Request, env: Env): Promise<Response> {
@@ -441,6 +1070,33 @@ async function handleUsers(
       .first<{ id: string }>();
     if (!role) throw new HttpError(400, "Role yang dipilih tidak tersedia.");
     const newUserId = createId("user");
+    if (roleId === "parent") {
+      const password = requiredString(body, "password", 256);
+      const passwordHash = await hashPassword(password);
+      try {
+        await env.CMS_DB.prepare(
+          `INSERT INTO users
+             (id, name, email, username, password_hash, role_id, status, notes)
+           VALUES (?, ?, ?, ?, ?, 'parent', 'active', ?)`,
+        )
+          .bind(
+            newUserId,
+            name,
+            email,
+            username,
+            passwordHash,
+            optionalString(body, "notes", 2000),
+          )
+          .run();
+      } catch {
+        throw new HttpError(409, "Email atau username sudah digunakan.");
+      }
+      await writeAudit(env.CMS_DB, user.id, "user.create", "user", newUserId, null, {
+        email,
+        roleId,
+      });
+      return jsonResponse({ id: newUserId, status: "active" }, 201);
+    }
     const invitationToken = randomToken();
     try {
       await env.CMS_DB.prepare(
@@ -776,8 +1432,8 @@ async function handleResource(
       return jsonResponse(row);
     }
     const result = await env.CMS_DB.prepare(
-      `SELECT ${definition.select} FROM ${definition.table} ${where}
-        ORDER BY created_at DESC LIMIT 500`,
+      `SELECT ${definition.listSelect ?? definition.select} FROM ${definition.table} ${where}
+        ORDER BY created_at DESC`,
     )
       .bind(...values)
       .all<Record<string, unknown>>();
@@ -940,6 +1596,22 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   if (!env.CMS_DB) throw new HttpError(503, "Database CMS belum dikonfigurasi.");
   const path = new URL(request.url).pathname.replace(/\/+$/, "");
 
+  if (path === "/api/auth/login" && request.method === "POST") {
+    return handleAppLogin(request, env);
+  }
+  if (path === "/api/auth/me" && request.method === "GET") {
+    return handleAppMe(request, env);
+  }
+  if (path === "/api/auth/logout" && request.method === "POST") {
+    return handleAppLogout(request, env);
+  }
+  if (path === "/api/app/data" && request.method === "GET") {
+    return handleAppData(request, env);
+  }
+  const appChildMatch = path.match(/^\/api\/app\/children\/([^/]+)(?:\/(progress|mastery|attempts))?$/);
+  if (appChildMatch) {
+    return handleAppChild(request, env, decodeURIComponent(appChildMatch[1]));
+  }
   if (path === "/api/cms/setup/status" && request.method === "GET") {
     const admin = await env.CMS_DB.prepare(
       "SELECT id FROM users WHERE role_id = 'admin_master' LIMIT 1",
@@ -1017,7 +1689,11 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/api/cms/")) {
+    if (
+      url.pathname.startsWith("/api/cms/") ||
+      url.pathname.startsWith("/api/auth/") ||
+      url.pathname.startsWith("/api/app/")
+    ) {
       try {
         return await handleApi(request, env);
       } catch (error) {
