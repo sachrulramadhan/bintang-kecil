@@ -301,9 +301,7 @@ export const ModuleRunner: React.FC<ModuleRunnerProps> = ({
               <Volume2 className="w-5 h-5" />
               <span>Dengarkan Bimo</span>
             </button>
-            {module.category === "mathematics" && (
-              <ModuleMaterialsPanel moduleId={module.id} category={module.category} />
-            )}
+            <ModuleMaterialsPanel moduleId={module.id} category={module.category} />
           </div>
         )}
 
